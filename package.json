@@ -6,7 +6,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "pnpm -r dev",
+    "dev": "pnpm -r --no-sort dev",
     "build": "pnpm --filter=orbweaver-core build && pnpm --filter=\"...^orbweaver-core\" build",
     "clean": "pnpm -r clean && rimraf node_modules",
     "ci:publish": "pnpm publish -r --no-git-checks",
