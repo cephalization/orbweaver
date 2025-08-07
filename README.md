@@ -1,6 +1,6 @@
 # Orbweaver
 
-![orbweaver-demo](./assets/demo.gif)
+![orbweaver-demo](https://raw.githubusercontent.com/cephalization/orbweaver/refs/heads/main/assets/demo.gif)
 
 A library for rendering pleasing blob-like orbs as ascii or shaded hues.
 
