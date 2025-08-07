@@ -29,7 +29,7 @@ importers:
 
   packages/web:
     dependencies:
-      '@cephalization/orbweaver':
+      orbweaver-core:
         specifier: workspace:*
         version: link:../orbweaver
       react:

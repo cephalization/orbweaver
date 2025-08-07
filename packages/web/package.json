@@ -24,7 +24,7 @@
     "vite": "^7.1.0"
   },
   "dependencies": {
-    "@cephalization/orbweaver": "workspace:*",
+    "orbweaver-core": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   }

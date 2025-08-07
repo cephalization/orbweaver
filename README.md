@@ -14,14 +14,14 @@ It supports:
 
 ```bash
 # install the orbweaver package
-pnpm add @cephalization/orbweaver
+pnpm add orbweaver-core
 ```
 
 Render a blob in an HTML canvas:
 
 ```tsx
 // index.ts
-import { Orbweaver } from "@cephalization/orbweaver";
+import { Orbweaver } from "orbweaver-core";
 
 const orbweaver = new Orbweaver(
   document.getElementById("canvas") as HTMLCanvasElement,

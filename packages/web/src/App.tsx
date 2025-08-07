@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Orbweaver } from "@cephalization/orbweaver";
+import { Orbweaver } from "orbweaver-core";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
