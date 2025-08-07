@@ -1,6 +1,6 @@
 {
   "name": "orbweaver-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Orbweaver is a library for rendering blob-like shapes.",
   "type": "module",
   "private": false,
