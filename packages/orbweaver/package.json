@@ -1,20 +1,40 @@
 {
   "name": "orbweaver",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.0",
+  "description": "Orbweaver is a library for rendering blob-like shapes.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "private": false,
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "types": "./dist/index.d.ts"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "clean": "rimraf dist node_modules"
+    "clean": "rimraf dist node_modules",
+    "typecheck": "tsc --noEmit",
+    "ci:check": "pnpm typecheck"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "blob",
+    "ascii",
+    "canvas",
+    "terminal",
+    "graphics"
+  ],
+  "files": [
+    "dist",
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cephalization/orbweaver"
+  },
+  "homepage": "https://github.com/cephalization/orbweaver",
+  "bugs": "https://github.com/cephalization/orbweaver/issues",
+  "author": "Anthony Powell <powell.anthonyd@proton.me>",
   "license": "MIT",
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
