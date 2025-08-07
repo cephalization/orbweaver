@@ -1,5 +1,11 @@
 # orbweaver-core
 
+## 0.0.3
+
+### Patch Changes
+
+- 31d25be: feat: Customizable renderers
+
 ## 0.0.2
 
 ### Patch Changes
