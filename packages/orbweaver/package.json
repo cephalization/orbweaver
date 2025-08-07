@@ -1,5 +1,5 @@
 {
-  "name": "orbweaver",
+  "name": "@cephalization/orbweaver",
   "version": "0.0.1",
   "description": "Orbweaver is a library for rendering blob-like shapes.",
   "type": "module",

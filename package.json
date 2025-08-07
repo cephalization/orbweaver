@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm -r dev",
-    "build": "pnpm --filter=orbweaver build && pnpm --filter=\"...^orbweaver\" build",
+    "build": "pnpm --filter=@cephalization/orbweaver build && pnpm --filter=\"...^@cephalization/orbweaver\" build",
     "clean": "pnpm -r clean && rimraf node_modules",
     "ci:publish": "pnpm publish -r",
     "ci:check": "pnpm -r ci:check"

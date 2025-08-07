@@ -12,11 +12,16 @@ It supports:
 
 ## Usage
 
+```bash
+# install the orbweaver package
+pnpm add @cephalization/orbweaver
+```
+
 Render a blob in an HTML canvas:
 
 ```tsx
 // index.ts
-import { Orbweaver } from "orbweaver";
+import { Orbweaver } from "@cephalization/orbweaver";
 
 const orbweaver = new Orbweaver(
   document.getElementById("canvas") as HTMLCanvasElement,
