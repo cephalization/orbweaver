@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -b && vite build",
     "clean": "rimraf dist node_modules",
     "typecheck": "tsc --noEmit",
     "ci:check": "pnpm typecheck"
