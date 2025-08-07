@@ -32,7 +32,14 @@ export class BlobModel {
   }
 }
 
-export class CanvasAsciiRenderer {
+export interface Renderer {
+  getPixelSize(): { width: number; height: number };
+  getGridSize(): { cols: number; rows: number };
+  render(intensityAt: (col: number, row: number) => number): void;
+  onResize(callback: () => void): () => void;
+}
+
+export class CanvasAsciiRenderer implements Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private dpr: number;
@@ -41,6 +48,7 @@ export class CanvasAsciiRenderer {
   private foreground: string;
   private background: string;
   private glyphs: string[];
+  private resizeListeners: Array<() => void> = [];
 
   constructor(canvas: HTMLCanvasElement, options?: OrbweaverOptions) {
     const ctx = canvas.getContext("2d");
@@ -58,7 +66,7 @@ export class CanvasAsciiRenderer {
   }
 
   private configureCanvas() {
-    const { canvas, dpr } = this;
+    const { canvas } = this;
     const rect = canvas.getBoundingClientRect();
     // Fallback if not styled yet
     const cssWidth = rect.width || 800;
@@ -74,8 +82,9 @@ export class CanvasAsciiRenderer {
     this.ctx.font = `14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
   }
 
-  resize() {
+  private resize() {
     this.configureCanvas();
+    for (const listener of this.resizeListeners) listener();
   }
 
   clear() {
@@ -84,7 +93,7 @@ export class CanvasAsciiRenderer {
     this.ctx.fillRect(0, 0, rect.width, rect.height);
   }
 
-  drawAsciiGrid(intensityAt: (col: number, row: number) => number) {
+  private drawAsciiGrid(intensityAt: (col: number, row: number) => number) {
     const rect = this.canvas.getBoundingClientRect();
     const cellWidth = rect.width / this.cols;
     const cellHeight = rect.height / this.rows;
@@ -110,10 +119,37 @@ export class CanvasAsciiRenderer {
       }
     }
   }
+
+  // Renderer interface
+  getPixelSize(): { width: number; height: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  }
+
+  getGridSize(): { cols: number; rows: number } {
+    return { cols: this.cols, rows: this.rows };
+  }
+
+  render(intensityAt: (col: number, row: number) => number): void {
+    this.drawAsciiGrid(intensityAt);
+  }
+
+  onResize(callback: () => void): () => void {
+    if (this.resizeListeners.length === 0) {
+      // Lazily attach a single window listener
+      window.addEventListener("resize", () => this.resize());
+    }
+    this.resizeListeners.push(callback);
+    return () => {
+      this.resizeListeners = this.resizeListeners.filter(
+        (cb) => cb !== callback
+      );
+    };
+  }
 }
 
 export class Orbweaver {
-  private renderer: CanvasAsciiRenderer;
+  private renderer: Renderer;
   private blob: BlobModel;
   private animationHandle: number | null = null;
   private startTimeMs: number = 0;
@@ -122,35 +158,44 @@ export class Orbweaver {
   private unitScale: number = 1; // pixels per normalized unit for mapping [-1,1]
   private cols: number;
   private rows: number;
+  private unsubscribeResize: (() => void) | null = null;
 
-  constructor(canvas: HTMLCanvasElement, options?: OrbweaverOptions) {
-    this.renderer = new CanvasAsciiRenderer(canvas, options);
+  constructor(
+    rendererOrCanvas: Renderer | HTMLCanvasElement,
+    options?: OrbweaverOptions
+  ) {
+    if (rendererOrCanvas instanceof HTMLCanvasElement) {
+      this.renderer = new CanvasAsciiRenderer(rendererOrCanvas, options);
+    } else {
+      this.renderer = rendererOrCanvas;
+    }
     this.blob = new BlobModel(0.55);
 
-    const rect = canvas.getBoundingClientRect();
-    this.centerX = rect.width / 2;
-    this.centerY = rect.height / 2;
-    this.unitScale = Math.min(rect.width, rect.height) / 2;
+    const { width, height } = this.renderer.getPixelSize();
+    this.centerX = width / 2;
+    this.centerY = height / 2;
+    this.unitScale = Math.min(width, height) / 2;
 
-    this.cols = options?.cols ?? 80;
-    this.rows = options?.rows ?? 30;
+    const grid = this.renderer.getGridSize();
+    this.cols = grid.cols;
+    this.rows = grid.rows;
 
-    window.addEventListener("resize", () => {
-      this.renderer.resize();
-      const r = canvas.getBoundingClientRect();
-      this.centerX = r.width / 2;
-      this.centerY = r.height / 2;
-      this.unitScale = Math.min(r.width, r.height) / 2;
+    this.unsubscribeResize = this.renderer.onResize(() => {
+      const size = this.renderer.getPixelSize();
+      this.centerX = size.width / 2;
+      this.centerY = size.height / 2;
+      this.unitScale = Math.min(size.width, size.height) / 2;
+      const newGrid = this.renderer.getGridSize();
+      this.cols = newGrid.cols;
+      this.rows = newGrid.rows;
     });
   }
 
   private intensityAt(col: number, row: number, timeSeconds: number): number {
     // Map grid to normalized device coordinates [-1, 1]
-    const rect = (this.renderer as any)[
-      "canvas"
-    ].getBoundingClientRect() as DOMRect;
-    const cellWidth = rect.width / this.cols;
-    const cellHeight = rect.height / this.rows;
+    const { width, height } = this.renderer.getPixelSize();
+    const cellWidth = width / this.cols;
+    const cellHeight = height / this.rows;
     const x = col * cellWidth + cellWidth * 0.5;
     const y = row * cellHeight + cellHeight * 0.5;
 
@@ -182,7 +227,7 @@ export class Orbweaver {
     const loop = () => {
       const now = performance.now();
       const t = (now - this.startTimeMs) / 1000;
-      this.renderer.drawAsciiGrid((c, r) => this.intensityAt(c, r, t));
+      this.renderer.render((c, r) => this.intensityAt(c, r, t));
       this.animationHandle = requestAnimationFrame(loop);
     };
     this.animationHandle = requestAnimationFrame(loop);
@@ -192,6 +237,10 @@ export class Orbweaver {
     if (this.animationHandle !== null) {
       cancelAnimationFrame(this.animationHandle);
       this.animationHandle = null;
+    }
+    if (this.unsubscribeResize) {
+      this.unsubscribeResize();
+      this.unsubscribeResize = null;
     }
   }
 }

@@ -17,7 +17,7 @@ It supports:
 pnpm add orbweaver-core
 ```
 
-Render a blob in an HTML canvas:
+Render a blob in an HTML canvas (auto-initialized canvas ASCII renderer):
 
 ```tsx
 // index.ts
@@ -39,6 +39,34 @@ orbweaver.start();
 ```html
 <!-- index.html -->
 <canvas id="canvas" style="width: 100%; height: 100%; border-radius: 8px; border: 1px solid #1E3A2F; background: #081B12;"></canvas>
+```
+
+Bring your own renderer (advanced):
+
+```ts
+// index.ts
+import { Orbweaver, CanvasAsciiRenderer, type Renderer } from "orbweaver-core";
+
+const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+
+// You can either use the provided CanvasAsciiRenderer explicitly...
+const renderer = new CanvasAsciiRenderer(canvas, {
+  cols: 100,
+  rows: 36,
+  foreground: "#A8FFB5",
+  background: "#081B12",
+});
+
+// ...or supply any custom implementation of the Renderer interface
+// interface Renderer {
+//   getPixelSize(): { width: number; height: number };
+//   getGridSize(): { cols: number; rows: number };
+//   render(intensityAt: (col: number, row: number) => number): void;
+//   onResize(callback: () => void): () => void;
+// }
+
+const orbweaver = new Orbweaver(renderer);
+orbweaver.start();
 ```
 
 ## Development
