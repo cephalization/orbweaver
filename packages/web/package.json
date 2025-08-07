@@ -2,7 +2,6 @@
   "name": "web",
   "version": "1.0.0",
   "description": "Web demo for Orbweaver",
-  "main": "index.js",
   "type": "module",
   "private": true,
   "scripts": {

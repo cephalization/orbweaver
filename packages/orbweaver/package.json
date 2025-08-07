@@ -1,15 +1,15 @@
 {
   "name": "orbweaver",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Orbweaver is a library for rendering blob-like shapes.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "type": "module",
   "private": false,
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     }
   },
   "scripts": {

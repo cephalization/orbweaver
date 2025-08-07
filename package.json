@@ -6,13 +6,13 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm -r dev",
-    "build": "pnpm -r build",
+    "build": "pnpm --filter=orbweaver build && pnpm --filter=\"...^orbweaver\" build",
     "clean": "pnpm -r clean && rimraf node_modules",
     "ci:publish": "pnpm publish -r",
     "ci:check": "pnpm -r ci:check"
   },
   "keywords": [],
-  "author": "",
+  "author": "Anthony Powell <powell.anthonyd@proton.me>",
   "license": "MIT",
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
