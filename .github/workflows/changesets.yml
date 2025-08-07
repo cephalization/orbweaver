@@ -34,6 +34,9 @@ jobs:
       - name: Run ci:check
         run: pnpm ci:check
 
+      - name: Copy README.md to orbweaver-core
+        run: cp README.md packages/orbweaver/README.md
+
       - name: Create and publish versions
         uses: changesets/action@v1
         with:

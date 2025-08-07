@@ -28,12 +28,11 @@
   ],
   "files": [
     "dist",
-    "src",
-    "../../README.md"
+    "src"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/cephalization/orbweaver"
+    "url": "git+https://github.com/cephalization/orbweaver.git"
   },
   "homepage": "https://github.com/cephalization/orbweaver",
   "bugs": "https://github.com/cephalization/orbweaver/issues",
