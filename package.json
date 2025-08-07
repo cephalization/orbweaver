@@ -4,6 +4,7 @@
   "description": "Orbweaver is a library for rendering blob-like shapes.",
   "main": "index.js",
   "type": "module",
+  "private": true,
   "scripts": {
     "dev": "pnpm -r dev",
     "build": "pnpm --filter=orbweaver build && pnpm --filter=\"...^orbweaver\" build",
