@@ -1,0 +1,46 @@
+{
+  "name": "orbweaver-tui-example",
+  "version": "1.0.0",
+  "description": "Orbweaver is a library for rendering blob-like shapes in the terminal or browser.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "clean": "rimraf dist node_modules",
+    "typecheck": "tsc --noEmit",
+    "ci:check": "pnpm typecheck"
+  },
+  "keywords": [
+    "blob",
+    "ascii",
+    "canvas",
+    "terminal",
+    "graphics"
+  ],
+  "files": [
+    "dist",
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cephalization/orbweaver.git"
+  },
+  "homepage": "https://github.com/cephalization/orbweaver",
+  "bugs": "https://github.com/cephalization/orbweaver/issues",
+  "author": "Anthony Powell <powell.anthonyd@proton.me>",
+  "license": "MIT",
+  "packageManager": "pnpm@10.14.0",
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.2"
+  }
+}
