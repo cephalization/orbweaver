@@ -1,5 +1,15 @@
 # orbweaver-core
 
+## 0.2.0
+
+### Minor Changes
+
+- 166bfb6: Improved extensibility of Behaviors and custom Behaviors
+
+### Patch Changes
+
+- 71cfa58: Handlers to dynamically update behaviors
+
 ## 0.1.0
 
 ### Minor Changes
