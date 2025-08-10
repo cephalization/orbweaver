@@ -1,5 +1,11 @@
 # orbweaver-core
 
+## 0.1.0
+
+### Minor Changes
+
+- b708cb8: refactor: Improve behavior abstraction boundary
+
 ## 0.0.3
 
 ### Patch Changes
