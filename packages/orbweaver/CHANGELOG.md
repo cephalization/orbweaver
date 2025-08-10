@@ -1,5 +1,12 @@
 # orbweaver-core
 
+## 0.0.3
+
+### Patch Changes
+
+- b6bcfad: Add customizable behaviors
+- 31d25be: feat: Customizable renderers
+
 ## 0.0.2
 
 ### Patch Changes
