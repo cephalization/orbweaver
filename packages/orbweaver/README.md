@@ -39,7 +39,14 @@ Bring your own renderer (advanced):
 
 ```ts
 // index.ts
-import { Orbweaver, CanvasAsciiRenderer, type Renderer } from "orbweaver-core";
+import {
+  Orbweaver,
+  CanvasAsciiRenderer,
+  BobBehavior,
+  RotateBehavior,
+  OrbitBehavior,
+  type Renderer,
+} from "orbweaver-core";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
@@ -59,13 +66,22 @@ const renderer = new CanvasAsciiRenderer(canvas, {
 //   onResize(callback: () => void): () => void;
 // }
 
+// Create behaviors
+const bob = new BobBehavior({ amplitude: 0.05, rate: 2.5 });
+const rotate = new RotateBehavior({ speed: 2.5, direction: -1 });
+const orbit = new OrbitBehavior({ radiusUnits: 0.15, angularSpeed: 1 });
+
 // Initialize the orbweaver with the renderer and desired behaviors
 const orbweaver = new Orbweaver({
   renderer,
-  behavior: [{ type: "rotate", speed: 1, direction: 1 }],
+  behavior: [bob, rotate, orbit],
 });
 
 orbweaver.start();
+
+// Update behavior parameters later
+rotate.set({ speed: 2.0 });
+bob.set({ amplitude: 0.4 });
 ```
 
 ## Development

@@ -4,7 +4,13 @@ import {
   CanvasAsciiRenderer,
   type RendererOptions,
 } from "./renderer.js";
-import { type Behavior, type BobBehavior } from "./behavior.js";
+import {
+  Behavior,
+  BobBehavior,
+  RotateBehavior,
+  Channels,
+  OrbitBehavior,
+} from "./behavior.js";
 
 export type OrbweaverOptions = {
   behavior?: Behavior[];
@@ -32,11 +38,6 @@ export class Orbweaver {
   private unsubscribeResize: (() => void) | null = null;
   private behaviors: Behavior[] = [];
 
-  // Integrated phases and smoothed params to avoid snapping on live edits
-  private rotatePhase: number = 0;
-  private bobPhase: number = 0;
-  private currentBobAmplitude: number = 0;
-
   constructor(optionsOrCanvas: OrbweaverOptions | HTMLCanvasElement) {
     let options: OrbweaverOptions;
     if (optionsOrCanvas instanceof HTMLCanvasElement) {
@@ -54,17 +55,11 @@ export class Orbweaver {
     }
     this.blob = new BlobModel(0.55);
 
-    // Parse behaviors. Default to ["rotate"] if none provided
+    // Parse behaviors. Default to a single rotate behavior if none provided
     const providedBehaviors: Behavior[] = options?.behavior ?? [
-      { type: "rotate", speed: 1, direction: 1 },
+      new RotateBehavior({ speed: 1, direction: 1 }),
     ];
     this.setBehavior(providedBehaviors);
-
-    // Initialize smoothed state from provided behaviors
-    const initialBob = this.behaviors.find(
-      (b): b is BobBehavior => b.type === "bob"
-    );
-    this.currentBobAmplitude = initialBob?.amplitude ?? 0;
 
     const { width, height } = this.renderer.getPixelSize();
     this.centerX = width / 2;
@@ -87,30 +82,14 @@ export class Orbweaver {
   }
 
   private intensityAt(col: number, row: number, deltaTimeMs: number): number {
-    // Update integrated phases and smoothed parameters once per frame
+    // Advance behaviors once per frame
     if (deltaTimeMs !== this.lastIntegratedDeltaTimeMs) {
       const frameDeltaMs = deltaTimeMs - this.lastIntegratedDeltaTimeMs;
       this.lastIntegratedDeltaTimeMs = deltaTimeMs;
       const dtSeconds = Math.max(0, frameDeltaMs / 1000);
-
-      const bobBehaviorInt = this.behaviors.find((b) => b.type === "bob");
-      const rotateBehaviorInt = this.behaviors.find((b) => b.type === "rotate");
-
-      // Integrate rotation phase
-      const angularVelocity =
-        (rotateBehaviorInt?.speed ?? 0) * (rotateBehaviorInt?.direction ?? 1);
-      this.rotatePhase += angularVelocity * dtSeconds;
-
-      // Integrate bob phase
-      const bobRate = bobBehaviorInt?.rate ?? 2.0;
-      this.bobPhase += bobRate * dtSeconds;
-
-      // Smooth bob amplitude toward target
-      const targetAmp = bobBehaviorInt?.amplitude ?? 0;
-      const smoothing = 1 - Math.exp(-dtSeconds * 12);
-      this.currentBobAmplitude +=
-        (targetAmp - this.currentBobAmplitude) *
-        Math.max(0, Math.min(1, smoothing));
+      for (const behavior of this.behaviors) {
+        behavior.update(dtSeconds);
+      }
     }
 
     // Map grid to normalized device coordinates [-1, 1]
@@ -120,22 +99,27 @@ export class Orbweaver {
     const x = col * cellWidth + cellWidth * 0.5;
     const y = row * cellHeight + cellHeight * 0.5;
 
-    const bobBehavior = this.behaviors.find((b) => b.type === "bob");
-
-    // Compute optional vertical bobbing in normalized units using integrated phase
-    const bobOffsetUnits =
-      bobBehavior && this.currentBobAmplitude > 0
-        ? Math.sin(this.bobPhase) * this.currentBobAmplitude
-        : 0;
-
     const nx = (x - this.centerX) / this.unitScale;
-    const ny =
-      (y - (this.centerY + bobOffsetUnits * this.unitScale)) / this.unitScale;
+    // Gather contributions from behaviors for this frame
+    let rotationPhase = 0;
+    let yOffsetUnits = 0;
+    let xOffsetUnits = 0;
+    for (const behavior of this.behaviors) {
+      const acc: Record<string, number> = {};
+      behavior.contribute(acc);
+      rotationPhase += acc[Channels.rotationPhase] ?? 0;
+      yOffsetUnits += acc[Channels.yOffsetUnits] ?? 0;
+      xOffsetUnits += acc[Channels.xOffsetUnits] ?? 0;
+    }
 
-    const r = Math.hypot(nx, ny) + 1e-6;
-    const theta = Math.atan2(ny, nx);
-    // Use integrated rotation phase to avoid snapping on live edits
-    const radius = this.blob.radiusAt(theta, this.rotatePhase);
+    const ny =
+      (y - (this.centerY + yOffsetUnits * this.unitScale)) / this.unitScale;
+    const nxShifted = nx - xOffsetUnits;
+
+    const r = Math.hypot(nxShifted, ny) + 1e-6;
+    const theta = Math.atan2(ny, nxShifted);
+    // Use aggregated rotation phase from behaviors
+    const radius = this.blob.radiusAt(theta, rotationPhase);
 
     // Interior intensity: higher near center, taper to boundary
     const interior = Math.max(0, 1 - r / (radius + 1e-6));
@@ -157,38 +141,14 @@ export class Orbweaver {
   }
 
   setBehavior(behavior: Behavior[]) {
-    this.behaviors = behavior;
-  }
-
-  /**
-   * Update the behaviors for the orbweaver.
-   * @param behavior - The behaviors to set.
-   * @todo refactor behaviors so that they contain their own state
-   */
-  updateBehavior(behavior: (Partial<Behavior> & { type: Behavior["type"] })[]) {
-    for (const b of behavior) {
-      if (b.type === "bob") {
-        this.behaviors = this.behaviors.map((b2) => {
-          if (b2.type === "bob") {
-            return { ...b2, ...b };
-          }
-          return b2;
-        });
-      } else if (b.type === "rotate") {
-        this.behaviors = this.behaviors.map((b2) => {
-          if (b2.type === "rotate") {
-            return { ...b2, ...b };
-          }
-          return b2;
-        });
-      }
-    }
+    this.behaviors = behavior.map((b) => {
+      return b;
+    });
   }
 
   /**
    * Remove the given behaviors from the orbweaver.
    * @param behavior - The behaviors to remove.
-   * @todo refactor behaviors so that they contain their own state
    */
   removeBehavior(behavior: Behavior[]) {
     this.behaviors = this.behaviors.filter(
@@ -222,5 +182,6 @@ export class Orbweaver {
 }
 
 export { BlobModel, type Renderer, CanvasAsciiRenderer, type RendererOptions };
+export { Behavior, BobBehavior, RotateBehavior, OrbitBehavior, Channels };
 
 export default Orbweaver;
