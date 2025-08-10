@@ -41,10 +41,81 @@ function App() {
         color: "#CFF9D9",
       }}
     >
-      <h1 style={{ margin: 0, color: "#E7FFE9" }}>Orbweaver Demo</h1>
-      <p style={{ margin: 0, color: "#9EDDB0" }}>
-        Gently undulating ASCII blob rendered on a canvas.
-      </p>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          gap: "12px",
+          width: "100%",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <h1 style={{ margin: 0, color: "#E7FFE9" }}>Orbweaver Demo</h1>
+          <p style={{ margin: 0, color: "#9EDDB0" }}>
+            Gently undulating ASCII blob rendered on a canvas.
+          </p>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            gap: "8px",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            width: "100%",
+            flexWrap: "wrap",
+          }}
+        >
+          <Slider
+            label="Rotate Speed"
+            min={0}
+            max={10}
+            step={0.1}
+            defaultValue={2.5}
+            onChange={(value) => {
+              orbweaverRef.current?.updateBehavior([
+                { type: "rotate", speed: value },
+              ]);
+            }}
+          />
+          <Slider
+            label="Rotate Speed"
+            min={0}
+            max={10}
+            step={0.1}
+            defaultValue={2.5}
+            onChange={(value) => {
+              orbweaverRef.current?.updateBehavior([
+                { type: "rotate", speed: value },
+              ]);
+            }}
+          />
+          <Slider
+            label="Bob Rate"
+            min={0}
+            max={5}
+            step={0.1}
+            defaultValue={1}
+            onChange={(value) => {
+              orbweaverRef.current?.updateBehavior([
+                { type: "bob", rate: value },
+              ]);
+            }}
+          />
+          <Slider
+            label="Bob Amplitude"
+            min={0}
+            max={1}
+            step={0.1}
+            defaultValue={0.45}
+            onChange={(value) => {
+              orbweaverRef.current?.updateBehavior([
+                { type: "bob", amplitude: value },
+              ]);
+            }}
+          />
+        </div>
+      </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         <canvas
           ref={canvasRef}
@@ -58,6 +129,36 @@ function App() {
         />
       </div>
     </div>
+  );
+}
+
+function Slider({
+  label,
+  min,
+  max,
+  step,
+  defaultValue,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  defaultValue: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      {label}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        defaultValue={defaultValue}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+      />
+    </label>
   );
 }
 
