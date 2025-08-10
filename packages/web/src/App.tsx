@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Orbweaver } from "orbweaver-core";
+import { CanvasAsciiRenderer, Orbweaver } from "orbweaver-core";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -8,12 +8,14 @@ function App() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ow = new Orbweaver(canvas, {
-      cols: 100,
-      rows: 36,
-      // Green hues on a very dark green canvas
-      foreground: "#A8FFB5", // mint green glyphs
-      background: "#081B12", // deep green canvas
+    const ow = new Orbweaver({
+      renderer: new CanvasAsciiRenderer(canvas, {
+        cols: 100,
+        rows: 36,
+        // Green hues on a very dark green canvas
+        foreground: "#A8FFB5", // mint green glyphs
+        background: "#081B12", // deep green canvas
+      }),
       behavior: [
         { type: "bob", amplitude: 0.45, rate: 1 },
         { type: "rotate", speed: 2.5, direction: -1 },

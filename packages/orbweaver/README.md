@@ -24,13 +24,7 @@ Render a blob in an HTML canvas (auto-initialized canvas ASCII renderer):
 import { Orbweaver } from "orbweaver-core";
 
 const orbweaver = new Orbweaver(
-  document.getElementById("canvas") as HTMLCanvasElement,
-  {
-    cols: 100,
-    rows: 36,
-    foreground: "#A8FFB5",
-    background: "#081B12",
-  }
+  document.getElementById("canvas") as HTMLCanvasElement
 );
 
 orbweaver.start();
@@ -65,7 +59,12 @@ const renderer = new CanvasAsciiRenderer(canvas, {
 //   onResize(callback: () => void): () => void;
 // }
 
-const orbweaver = new Orbweaver(renderer);
+// Initialize the orbweaver with the renderer and desired behaviors
+const orbweaver = new Orbweaver({
+  renderer,
+  behavior: [{ type: "rotate", speed: 1, direction: 1 }],
+});
+
 orbweaver.start();
 ```
 

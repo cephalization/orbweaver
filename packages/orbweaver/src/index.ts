@@ -3,8 +3,20 @@ import {
   type Renderer,
   CanvasAsciiRenderer,
   type RendererOptions,
-  type Behavior,
 } from "./renderer.js";
+import { type Behavior } from "./behavior.js";
+
+export type OrbweaverOptions = {
+  behavior?: Behavior[];
+  renderer: Renderer;
+};
+
+const DEFAULT_RENDERER_OPTIONS: RendererOptions = {
+  cols: 80,
+  rows: 30,
+  foreground: "#1a1a1a",
+  background: "#ffffff",
+};
 
 export class Orbweaver {
   private renderer: Renderer;
@@ -21,14 +33,20 @@ export class Orbweaver {
   private rotateTimeScale: number = 0; // multiplier for time (can be negative)
   private bobRate: number = 2.0; // multiplier for time (can be negative)
 
-  constructor(
-    rendererOrCanvas: Renderer | HTMLCanvasElement,
-    options?: RendererOptions
-  ) {
-    if (rendererOrCanvas instanceof HTMLCanvasElement) {
-      this.renderer = new CanvasAsciiRenderer(rendererOrCanvas, options);
+  constructor(optionsOrCanvas: OrbweaverOptions | HTMLCanvasElement) {
+    let options: OrbweaverOptions;
+    if (optionsOrCanvas instanceof HTMLCanvasElement) {
+      this.renderer = new CanvasAsciiRenderer(
+        optionsOrCanvas,
+        DEFAULT_RENDERER_OPTIONS
+      );
+      options = {
+        renderer: this.renderer,
+        ...DEFAULT_RENDERER_OPTIONS,
+      };
     } else {
-      this.renderer = rendererOrCanvas;
+      this.renderer = optionsOrCanvas.renderer;
+      options = optionsOrCanvas;
     }
     this.blob = new BlobModel(0.55);
 
