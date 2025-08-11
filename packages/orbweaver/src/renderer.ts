@@ -119,4 +119,12 @@ export class CanvasAsciiRenderer implements Renderer {
       );
     };
   }
+
+  setForeground(foreground: string) {
+    this.foreground = foreground;
+  }
+
+  setBackground(background: string) {
+    this.background = background;
+  }
 }

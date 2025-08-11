@@ -10,6 +10,7 @@ import {
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const orbweaverRef = useRef<Orbweaver | null>(null);
+  const rendererRef = useRef<CanvasAsciiRenderer | null>(null);
   const behaviorsRef = useRef<{
     bob: BobBehavior;
     rotate: RotateBehavior;
@@ -19,6 +20,9 @@ function App() {
     bob: { amplitude: 0.05, rate: 1 },
     rotate: { speed: 2.5, direction: -1 },
     orbit: { radiusUnits: 0.5, angularSpeed: 1 },
+    // mint green hues
+    foreground: "#A8FFB5",
+    background: "#081B12",
   });
 
   useEffect(() => {
@@ -30,26 +34,28 @@ function App() {
       radiusUnits: 0.15,
       angularSpeed: 1,
     });
+    const renderer = new CanvasAsciiRenderer(canvas, {
+      cols: 100,
+      rows: 36,
+      foreground: defaultValues.foreground,
+      background: defaultValues.background,
+    });
+    rendererRef.current = renderer;
     const ow = new Orbweaver({
-      renderer: new CanvasAsciiRenderer(canvas, {
-        cols: 100,
-        rows: 36,
-        // Green hues on a very dark green canvas
-        foreground: "#A8FFB5", // mint green glyphs
-        background: "#081B12", // deep green canvas
-      }),
+      renderer,
       behavior: [bob, rotate, orbit],
     });
     behaviorsRef.current = { bob, rotate, orbit };
     orbweaverRef.current = ow;
-    setDefaultValues({
+    setDefaultValues((dv) => ({
+      ...dv,
       bob: { amplitude: bob.amplitude, rate: bob.rate },
       rotate: { speed: rotate.speed, direction: rotate.direction },
       orbit: {
         radiusUnits: orbit.radiusUnits,
         angularSpeed: orbit.angularSpeed,
       },
-    });
+    }));
     ow.start();
     return () => {
       ow.stop();
@@ -95,6 +101,28 @@ function App() {
             flexWrap: "wrap",
           }}
         >
+          <ColorPicker
+            label="Foreground"
+            value={defaultValues.foreground}
+            onChange={(value) => {
+              setDefaultValues((dv) => ({
+                ...dv,
+                foreground: value,
+              }));
+              rendererRef.current?.setForeground(value);
+            }}
+          />
+          <ColorPicker
+            label="Background"
+            value={defaultValues.background}
+            onChange={(value) => {
+              setDefaultValues((dv) => ({
+                ...dv,
+                background: value,
+              }));
+              rendererRef.current?.setBackground(value);
+            }}
+          />
           <Slider
             label="Rotate Speed"
             min={0}
@@ -198,6 +226,27 @@ function Slider({
         step={step}
         defaultValue={defaultValue}
         onChange={(e) => onChange(parseFloat(e.target.value))}
+      />
+    </label>
+  );
+}
+
+function ColorPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      {label}
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
       />
     </label>
   );
