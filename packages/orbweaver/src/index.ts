@@ -17,6 +17,8 @@ export type OrbweaverOptions = {
   renderer: Renderer;
 };
 
+export type Vector2 = { x: number; y: number };
+
 const DEFAULT_RENDERER_OPTIONS: RendererOptions = {
   cols: 80,
   rows: 30,
@@ -37,6 +39,13 @@ export class Orbweaver {
   private rows: number;
   private unsubscribeResize: (() => void) | null = null;
   private behaviors: Behavior[] = [];
+
+  // Impulse integration state (normalized units)
+  private impulseOffsetUnits: Vector2 = { x: 0, y: 0 };
+  private impulseVelocityUnitsPerSecond: Vector2 = { x: 0, y: 0 };
+  // Spring-damper parameters (mass=1), tuned for a fast, smooth settle
+  private readonly impulseStiffness: number = 20; // k
+  private readonly impulseDamping: number = 9; // c ≈ 2*sqrt(k)
 
   constructor(optionsOrCanvas: OrbweaverOptions | HTMLCanvasElement) {
     let options: OrbweaverOptions;
@@ -90,6 +99,45 @@ export class Orbweaver {
       for (const behavior of this.behaviors) {
         behavior.update(dtSeconds);
       }
+
+      // Integrate impulse spring-damper toward origin in normalized units
+      if (dtSeconds > 0) {
+        const k = this.impulseStiffness;
+        const c = this.impulseDamping;
+
+        // X axis
+        const ax =
+          -k * this.impulseOffsetUnits.x -
+          c * this.impulseVelocityUnitsPerSecond.x;
+        this.impulseVelocityUnitsPerSecond.x += ax * dtSeconds;
+        this.impulseOffsetUnits.x +=
+          this.impulseVelocityUnitsPerSecond.x * dtSeconds;
+
+        // Y axis
+        const ay =
+          -k * this.impulseOffsetUnits.y -
+          c * this.impulseVelocityUnitsPerSecond.y;
+        this.impulseVelocityUnitsPerSecond.y += ay * dtSeconds;
+        this.impulseOffsetUnits.y +=
+          this.impulseVelocityUnitsPerSecond.y * dtSeconds;
+
+        // Snap to zero when sufficiently small to avoid float drift
+        const eps = 1e-4;
+        if (
+          Math.abs(this.impulseOffsetUnits.x) < eps &&
+          Math.abs(this.impulseVelocityUnitsPerSecond.x) < eps
+        ) {
+          this.impulseOffsetUnits.x = 0;
+          this.impulseVelocityUnitsPerSecond.x = 0;
+        }
+        if (
+          Math.abs(this.impulseOffsetUnits.y) < eps &&
+          Math.abs(this.impulseVelocityUnitsPerSecond.y) < eps
+        ) {
+          this.impulseOffsetUnits.y = 0;
+          this.impulseVelocityUnitsPerSecond.y = 0;
+        }
+      }
     }
 
     // Map grid to normalized device coordinates [-1, 1]
@@ -111,6 +159,10 @@ export class Orbweaver {
       yOffsetUnits += acc[Channels.yOffsetUnits] ?? 0;
       xOffsetUnits += acc[Channels.xOffsetUnits] ?? 0;
     }
+
+    // Apply impulse offsets in concert with behaviors (normalized units)
+    xOffsetUnits += this.impulseOffsetUnits.x;
+    yOffsetUnits += this.impulseOffsetUnits.y;
 
     const ny =
       (y - (this.centerY + yOffsetUnits * this.unitScale)) / this.unitScale;
@@ -178,6 +230,18 @@ export class Orbweaver {
       this.unsubscribeResize();
       this.unsubscribeResize = null;
     }
+  }
+
+  /**
+   * Apply an instantaneous impulse to the orb's center in normalized units.
+   * The impulse acts like an added velocity that decays via a critically-damped
+   * spring toward the origin over subsequent frames.
+   *
+   * @param force Units-per-second kick to apply. Larger magnitudes persist longer.
+   */
+  impulse(force: Vector2): void {
+    this.impulseVelocityUnitsPerSecond.x += force.x;
+    this.impulseVelocityUnitsPerSecond.y += force.y;
   }
 }
 

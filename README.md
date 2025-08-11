@@ -85,6 +85,9 @@ orbweaver.start();
 // Update behavior parameters later
 rotate.set({ speed: 2.0 });
 bob.set({ amplitude: 0.4 });
+
+// Apply a transient impulse (normalized units-per-second, towards the center of the renderer)
+orbweaver.impulse({ x: 1.2, y: 0 });
 ```
 
 ## Development

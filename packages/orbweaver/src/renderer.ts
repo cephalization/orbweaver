@@ -93,6 +93,84 @@ export class CanvasAsciiRenderer implements Renderer {
     }
   }
 
+  /**
+   * Convert client coordinates from a mouse event (or similar) to canvas-local pixel and cell coordinates.
+   * Returns the zero-based integer cell indices along with the local pixel position.
+   */
+  clientToCell(
+    clientX: number,
+    clientY: number
+  ): {
+    /**
+     * The zero-based integer column index.
+     */
+    col: number;
+    /**
+     * The zero-based integer row index.
+     */
+    row: number;
+    /**
+     * The local pixel x-coordinate.
+     */
+    x: number;
+    /**
+     * The local pixel y-coordinate.
+     */
+    y: number;
+    /**
+     * The distance to the center of the canvas, from the client coordinates in pixels.
+     */
+    distanceToCenter: number;
+    /**
+     * The scale factor from normalized units to pixels.
+     */
+    unitScalePx: number;
+    /**
+     * The normalized x-offset from the center of the canvas.
+     */
+    normalizedOffsetX: number;
+    /**
+     * The normalized y-offset from the center of the canvas.
+     */
+    normalizedOffsetY: number;
+    /**
+     * The normalized distance to the center of the canvas.
+     */
+    normalizedDistance: number;
+  } {
+    const rect = this.canvas.getBoundingClientRect();
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const cellWidth = rect.width / this.cols;
+    const cellHeight = rect.height / this.rows;
+    let col = Math.floor(localX / cellWidth);
+    let row = Math.floor(localY / cellHeight);
+    // Clamp to grid bounds
+    col = Math.max(0, Math.min(this.cols - 1, col));
+    row = Math.max(0, Math.min(this.rows - 1, row));
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const distanceToCenter = Math.hypot(localX - cx, localY - cy);
+    const unitScalePx = Math.max(1e-6, Math.min(rect.width, rect.height) / 2);
+    const normalizedOffsetX = (localX - cx) / unitScalePx; // right positive
+    const normalizedOffsetY = (localY - cy) / unitScalePx; // down positive
+    const normalizedDistance = Math.min(
+      1,
+      Math.hypot(normalizedOffsetX, normalizedOffsetY)
+    );
+    return {
+      col,
+      row,
+      x: localX,
+      y: localY,
+      distanceToCenter,
+      unitScalePx,
+      normalizedOffsetX,
+      normalizedOffsetY,
+      normalizedDistance,
+    };
+  }
+
   // Renderer interface
   getPixelSize(): { width: number; height: number } {
     const rect = this.canvas.getBoundingClientRect();

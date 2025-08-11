@@ -57,10 +57,23 @@ function App() {
       },
     }));
     ow.start();
+
+    // Click to apply an impulse away from the click position
+    const onClick = (e: MouseEvent) => {
+      const { normalizedOffsetX, normalizedOffsetY, normalizedDistance } =
+        renderer.clientToCell(e.clientX, e.clientY);
+      if (normalizedDistance <= 1e-6) return;
+      const strength = 8.0; // units/second (constant magnitude)
+      const ux = -normalizedOffsetX / normalizedDistance; // toward center
+      const uy = -normalizedOffsetY / normalizedDistance;
+      orbweaverRef.current?.impulse({ x: ux * strength, y: uy * strength });
+    };
+    canvas.addEventListener("click", onClick);
     return () => {
       ow.stop();
       orbweaverRef.current = null;
       behaviorsRef.current = null;
+      canvas.removeEventListener("click", onClick);
     };
   }, []);
 
@@ -86,8 +99,9 @@ function App() {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <h1 style={{ margin: 0, color: "#E7FFE9" }}>Orbweaver Demo</h1>
-          <p style={{ margin: 0, color: "#9EDDB0" }}>
-            Gently undulating ASCII blob rendered on a canvas.
+          <p style={{ margin: 0, color: "#9EDDB0", textWrap: "nowrap" }}>
+            Gently undulating ASCII blob rendered on a canvas. <br /> Click to
+            apply an impulse away from the click position.
           </p>
         </div>
         <div
