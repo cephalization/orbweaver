@@ -1,5 +1,11 @@
 # orbweaver-core
 
+## 0.2.1
+
+### Patch Changes
+
+- 6b25b13: Customizable CanvasAsciiRenderer colors
+
 ## 0.2.0
 
 ### Minor Changes
