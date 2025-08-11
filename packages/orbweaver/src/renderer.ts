@@ -12,6 +12,17 @@ export interface Renderer {
   onResize(callback: () => void): () => void;
 }
 
+type CanvasAsciiRendererOptions = RendererOptions & {
+  /**
+   * The glyphs to use for rendering.
+   * The first glyph is used as the background cell.
+   * The last glyph is used as the most intense foreground cell (center of the orb).
+   */
+  glyphs?: string[];
+};
+
+const DEFAULT_GLYPHS = [" ", ".", ":", "-", "=", "+", "*", "#", "%", "@"];
+
 export class CanvasAsciiRenderer implements Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -23,7 +34,7 @@ export class CanvasAsciiRenderer implements Renderer {
   private glyphs: string[];
   private resizeListeners: Array<() => void> = [];
 
-  constructor(canvas: HTMLCanvasElement, options?: RendererOptions) {
+  constructor(canvas: HTMLCanvasElement, options?: CanvasAsciiRendererOptions) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D canvas context not available");
     this.canvas = canvas;
@@ -33,7 +44,7 @@ export class CanvasAsciiRenderer implements Renderer {
     this.rows = options?.rows ?? 30;
     this.foreground = options?.foreground ?? "#1a1a1a";
     this.background = options?.background ?? "#ffffff";
-    this.glyphs = [" ", ".", ":", "-", "=", "+", "*", "#", "%", "@"];
+    this.glyphs = options?.glyphs ?? DEFAULT_GLYPHS;
 
     this.configureCanvas();
   }

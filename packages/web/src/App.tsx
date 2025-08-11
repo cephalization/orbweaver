@@ -35,10 +35,15 @@ function App() {
       angularSpeed: 1,
     });
     const renderer = new CanvasAsciiRenderer(canvas, {
-      cols: 100,
-      rows: 36,
+      cols: 120,
+      rows: 42,
       foreground: defaultValues.foreground,
       background: defaultValues.background,
+      // provide your own glyphs to render the orb in different ways
+      // an empty string as the first glyph will render as a background cell
+      // glyphs: [" ", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
+      // glyphs: [" ", "🌍", "🌎", "🌏", "🌍", "🌎", "🌏", "🌍", "🌎", "🌏", "🌍"],
+      // glyphs: [" ", "/", "|", "\\", "-", "+"],
     });
     rendererRef.current = renderer;
     const ow = new Orbweaver({
@@ -83,7 +88,7 @@ function App() {
         display: "flex",
         flexDirection: "column",
         minHeight: "100vh",
-        padding: "16px",
+        padding: "8px",
         gap: "12px",
         background: "#020F0A", // near-black with green cast
         color: "#CFF9D9",
@@ -95,24 +100,39 @@ function App() {
           flexDirection: "row",
           gap: "12px",
           width: "100%",
+          flexWrap: "wrap",
+          maxWidth: "100%",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            paddingLeft: "8px",
+          }}
+        >
           <h1 style={{ margin: 0, color: "#E7FFE9" }}>Orbweaver Demo</h1>
-          <p style={{ margin: 0, color: "#9EDDB0", textWrap: "nowrap" }}>
-            Gently undulating ASCII blob rendered on a canvas. <br /> Click to
-            apply an impulse away from the click position.
-          </p>
+          <div style={{ display: "flex", flexDirection: "row", gap: "4px" }}>
+            <p style={{ margin: 0, color: "#9EDDB0" }}>
+              Gently undulating ASCII blob rendered on a canvas. Click to apply
+              an impulse away from the click position.
+            </p>
+          </div>
         </div>
         <div
           style={{
             display: "flex",
             flexDirection: "row",
             gap: "8px",
-            justifyContent: "flex-end",
-            alignItems: "center",
+            alignItems: "flex-start",
             width: "100%",
-            flexWrap: "wrap",
+            overflow: "auto",
+            maxWidth: "100%",
+            background: "#081B12",
+            borderRadius: 8,
+            border: "1px solid #1E3A2F",
+            padding: "8px",
           }}
         >
           <ColorPicker
