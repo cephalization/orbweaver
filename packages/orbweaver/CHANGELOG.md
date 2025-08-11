@@ -1,5 +1,11 @@
 # orbweaver-core
 
+## 0.2.2
+
+### Patch Changes
+
+- 3600b1d: Add impulse method to orbweaver instances
+
 ## 0.2.1
 
 ### Patch Changes
