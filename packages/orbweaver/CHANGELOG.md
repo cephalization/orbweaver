@@ -1,5 +1,11 @@
 # orbweaver-core
 
+## 0.2.3
+
+### Patch Changes
+
+- 9eb1677: Customizable glyphs in the CanvasAsciiRenderer
+
 ## 0.2.2
 
 ### Patch Changes
