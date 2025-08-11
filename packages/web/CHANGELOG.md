@@ -1,5 +1,12 @@
 # web
 
+## 1.0.7
+
+### Patch Changes
+
+- Updated dependencies [9eb1677]
+  - orbweaver-core@0.2.3
+
 ## 1.0.6
 
 ### Patch Changes
