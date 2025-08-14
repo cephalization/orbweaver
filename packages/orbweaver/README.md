@@ -9,6 +9,7 @@ It supports:
 - Bring your own rendering backend (canvas, terminal ascii, etc)
 - Customizable colors
 - Responsive interaction (mouse, keyboard, audio, etc)
+- Configurable framerate for performance control
 
 ## Usage
 
@@ -75,6 +76,7 @@ const orbit = new OrbitBehavior({ radiusUnits: 0.15, angularSpeed: 1 });
 const orbweaver = new Orbweaver({
   renderer,
   behavior: [bob, rotate, orbit],
+  fps: 30, // Optional: limit to 30 FPS for performance
 });
 
 orbweaver.start();
@@ -82,6 +84,10 @@ orbweaver.start();
 // Update behavior parameters later
 rotate.set({ speed: 2.0 });
 bob.set({ amplitude: 0.4 });
+
+// Dynamically adjust framerate
+orbweaver.setTargetFPS(60); // Set to 60 FPS
+orbweaver.setTargetFPS(null); // Unlimited FPS (default)
 
 // Apply a transient impulse (normalized units-per-second, towards the center of the renderer)
 orbweaver.impulse({ x: 1.2, y: 0 });

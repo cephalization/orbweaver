@@ -15,6 +15,7 @@ import {
 export type OrbweaverOptions = {
   behavior?: Behavior[];
   renderer: Renderer;
+  fps?: number; // Target frames per second (default: unlimited)
 };
 
 export type Vector2 = { x: number; y: number };
@@ -39,6 +40,9 @@ export class Orbweaver {
   private rows: number;
   private unsubscribeResize: (() => void) | null = null;
   private behaviors: Behavior[] = [];
+  private targetFPS: number | null = null; // null means unlimited
+  private frameIntervalMs: number | null = null; // null means unlimited
+  private lastFrameTimeMs: number = 0; // For frame timing
 
   // Impulse integration state (normalized units)
   private impulseOffsetUnits: Vector2 = { x: 0, y: 0 };
@@ -63,6 +67,11 @@ export class Orbweaver {
       options = optionsOrCanvas;
     }
     this.blob = new BlobModel(0.55);
+
+    // Set target FPS if provided
+    if (options.fps !== undefined) {
+      this.setTargetFPS(options.fps);
+    }
 
     // Parse behaviors. Default to a single rotate behavior if none provided
     const providedBehaviors: Behavior[] = options?.behavior ?? [
@@ -208,22 +217,73 @@ export class Orbweaver {
     );
   }
 
+  /**
+   * Set the target frames per second for the animation loop.
+   * @param fps - Target frames per second. Pass null or 0 for unlimited (default behavior).
+   */
+  setTargetFPS(fps: number | null): void {
+    this.targetFPS = fps;
+    if (fps && fps > 0) {
+      this.frameIntervalMs = 1000 / fps;
+    } else {
+      this.frameIntervalMs = null;
+    }
+  }
+
+  /**
+   * Get the current target FPS setting.
+   * @returns The target FPS, or null if unlimited.
+   */
+  getTargetFPS(): number | null {
+    return this.targetFPS;
+  }
+
   start() {
     if (this.animationHandle !== null) return;
     this.startTimeMs = performance.now();
+    this.lastFrameTimeMs = this.startTimeMs;
+    
     const loop = () => {
       const now = performance.now();
       const deltaTimeMs = now - this.startTimeMs;
 
+      // Frame rate limiting logic
+      if (this.frameIntervalMs !== null) {
+        const timeSinceLastFrame = now - this.lastFrameTimeMs;
+        if (timeSinceLastFrame < this.frameIntervalMs) {
+          // Schedule next frame with precise timing
+          const delay = this.frameIntervalMs - timeSinceLastFrame;
+          this.animationHandle = setTimeout(loop, delay);
+          return;
+        }
+        this.lastFrameTimeMs = now;
+      }
+
       this.renderer.render((c, r) => this.intensityAt(c, r, deltaTimeMs));
-      this.animationHandle = requestAnimationFrame(loop);
+      
+      if (this.frameIntervalMs === null) {
+        // Unlimited FPS - use requestAnimationFrame
+        this.animationHandle = requestAnimationFrame(loop);
+      } else {
+        // Limited FPS - schedule next frame
+        this.animationHandle = setTimeout(loop, this.frameIntervalMs);
+      }
     };
-    this.animationHandle = requestAnimationFrame(loop);
+    
+    if (this.frameIntervalMs === null) {
+      this.animationHandle = requestAnimationFrame(loop);
+    } else {
+      this.animationHandle = setTimeout(loop, this.frameIntervalMs);
+    }
   }
 
   stop() {
     if (this.animationHandle !== null) {
-      cancelAnimationFrame(this.animationHandle);
+      if (this.frameIntervalMs === null) {
+        cancelAnimationFrame(this.animationHandle);
+      } else {
+        clearTimeout(this.animationHandle);
+      }
       this.animationHandle = null;
     }
     if (this.unsubscribeResize) {

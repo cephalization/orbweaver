@@ -23,6 +23,7 @@ function App() {
     // mint green hues
     foreground: "#A8FFB5",
     background: "#081B12",
+    fps: 60, // Default FPS
   });
 
   useEffect(() => {
@@ -49,6 +50,7 @@ function App() {
     const ow = new Orbweaver({
       renderer,
       behavior: [bob, rotate, orbit],
+      fps: defaultValues.fps, // Set initial FPS
     });
     behaviorsRef.current = { bob, rotate, orbit };
     orbweaverRef.current = ow;
@@ -124,7 +126,7 @@ function App() {
           style={{
             display: "flex",
             flexDirection: "row",
-            gap: "8px",
+            gap: "12px",
             alignItems: "flex-start",
             width: "100%",
             overflow: "auto",
@@ -217,6 +219,17 @@ function App() {
               behaviorsRef.current?.orbit?.set({ angularSpeed: value });
             }}
           />
+          <Slider
+            label="Target FPS"
+            min={1}
+            max={120}
+            step={1}
+            defaultValue={defaultValues.fps}
+            onChange={(value) => {
+              setDefaultValues((dv) => ({ ...dv, fps: value }));
+              orbweaverRef.current?.setTargetFPS(value);
+            }}
+          />
         </div>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -250,18 +263,26 @@ function Slider({
   defaultValue: number;
   onChange: (value: number) => void;
 }) {
+  const [innerValue, setInnerValue] = useState(defaultValue);
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-      {label}
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        defaultValue={defaultValue}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-      />
-    </label>
+    <div style={{ display: "flex", flexDirection: "row", gap: "4px", alignItems: "flex-start" }}>
+      <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        {label}
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          defaultValue={defaultValue}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            setInnerValue(value);
+            onChange(value);
+          }}
+        />
+      </label>
+      <span style={{ color: "#9EDDB0" }}>{innerValue}</span>
+    </div>
   );
 }
 
