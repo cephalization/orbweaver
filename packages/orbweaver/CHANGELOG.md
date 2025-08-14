@@ -1,5 +1,11 @@
 # orbweaver-core
 
+## 0.2.4
+
+### Patch Changes
+
+- 6504c52: Add configurable FPS property to Orbweaver instance
+
 ## 0.2.3
 
 ### Patch Changes
