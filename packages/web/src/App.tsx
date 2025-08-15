@@ -52,6 +52,7 @@ function App() {
       behavior: [bob, rotate, orbit],
       fps: defaultValues.fps, // Set initial FPS
     });
+    ow.setDebugCrosshair(true);
     behaviorsRef.current = { bob, rotate, orbit };
     orbweaverRef.current = ow;
     setDefaultValues((dv) => ({
@@ -76,11 +77,23 @@ function App() {
       orbweaverRef.current?.impulse({ x: ux * strength, y: uy * strength });
     };
     canvas.addEventListener("click", onClick);
+
+    const onMouseMove = (e: MouseEvent) => {
+      const { row, col } = renderer.clientToCell(e.clientX, e.clientY);
+      orbweaverRef.current?.updateCursor(col, row);
+    };
+    const onMouseLeave = () => {
+      orbweaverRef.current?.updateCursor(null, null);
+    };
+    canvas.addEventListener("mousemove", onMouseMove);
+    canvas.addEventListener("mouseleave", onMouseLeave);
     return () => {
       ow.stop();
       orbweaverRef.current = null;
       behaviorsRef.current = null;
       canvas.removeEventListener("click", onClick);
+      canvas.removeEventListener("mousemove", onMouseMove);
+      canvas.removeEventListener("mouseleave", onMouseLeave);
     };
   }, []);
 

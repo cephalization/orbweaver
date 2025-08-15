@@ -53,16 +53,23 @@ export class Orbweaver {
   private targetFPS: number | null = null; // null means unlimited
   private frameIntervalMs: number | null = null; // null means unlimited
   private lastFrameTimeMs: number = 0; // For frame timing
+  private crosshairRow: number | null = null;
+  private crosshairCol: number | null = null;
+  private debugCrosshair: boolean = false;
 
   // Cached per-frame state used by per-cell sampling in intensityAt
   private frameState: {
     rotationPhase: number;
     xOffsetUnits: number;
     yOffsetUnits: number;
+    cursorTheta: number | null;
+    cursorDistanceUnits: number | null;
   } = {
     rotationPhase: 0,
     xOffsetUnits: 0,
     yOffsetUnits: 0,
+    cursorTheta: null,
+    cursorDistanceUnits: null,
   };
 
   // Impulse integration state (normalized units)
@@ -113,6 +120,17 @@ export class Orbweaver {
     if (!this.renderer) {
       throw new Error("Renderer not set");
     }
+
+    if (
+      this.debugCrosshair &&
+      this.crosshairRow !== null &&
+      this.crosshairCol !== null
+    ) {
+      if (col === this.crosshairRow && row === this.crosshairCol) {
+        return 1;
+      }
+    }
+
     // Map grid to normalized device coordinates [-1, 1]
     const { width, height } = this.renderer.getPixelSize();
     const cellWidth = width / this.cols;
@@ -122,7 +140,8 @@ export class Orbweaver {
 
     const nx = (x - this.centerX) / this.unitScale;
     // Use cached per-frame contributions
-    const { rotationPhase, xOffsetUnits, yOffsetUnits } = this.frameState;
+    const { rotationPhase, xOffsetUnits, yOffsetUnits, cursorTheta } =
+      this.frameState;
 
     const ny =
       (y - (this.centerY + yOffsetUnits * this.unitScale)) / this.unitScale;
@@ -131,7 +150,25 @@ export class Orbweaver {
     const r = Math.hypot(nxShifted, ny) + 1e-6;
     const theta = Math.atan2(ny, nxShifted);
     // Use aggregated rotation phase from behaviors
-    const radius = this.blob.radiusAt(theta, rotationPhase);
+    const baseRadius = this.blob.radiusAt(theta, rotationPhase);
+
+    // If we have a cursor angle, reduce the radius in that angular direction
+    // using a simple cosine falloff centered at the cursor angle
+    let radius = baseRadius;
+    if (cursorTheta !== null) {
+      const angleDiff = theta - cursorTheta;
+      const angularFalloff = Math.max(0, Math.cos(angleDiff)); // [0,1]
+      // Distance falloff: closer cursor -> stronger effect. Clamp to [0,1].
+      // Map distance [0, 1+] to influence [1, 0] with a soft curve.
+      const d = Math.min(
+        1,
+        Math.max(0, this.frameState.cursorDistanceUnits ?? 1)
+      );
+      const distanceInfluence = 1 - d; // 1 at center, 0 at or beyond radius 1
+      const strength = 0.9; // base compression strength
+      const combined = angularFalloff * distanceInfluence;
+      radius = baseRadius * (1 - strength * combined);
+    }
 
     // Interior intensity: higher near center, taper to boundary
     const interior = Math.max(0, 1 - r / (radius + 1e-6));
@@ -212,7 +249,44 @@ export class Orbweaver {
     xOffsetUnits += this.impulseOffsetUnits.x;
     yOffsetUnits += this.impulseOffsetUnits.y;
 
-    this.frameState = { rotationPhase, xOffsetUnits, yOffsetUnits };
+    // Compute cursor angle and distance relative to the blob center in normalized space, if available
+    let cursorTheta: number | null = null;
+    let cursorDistanceUnits: number | null = null;
+    if (
+      this.renderer &&
+      this.crosshairRow !== null &&
+      this.crosshairCol !== null &&
+      this.cols > 0 &&
+      this.rows > 0
+    ) {
+      const { width, height } = this.renderer.getPixelSize();
+      const cellWidth = width / this.cols;
+      const cellHeight = height / this.rows;
+      const cursorPxX = this.crosshairRow * cellWidth + cellWidth * 0.5;
+      const cursorPxY = this.crosshairCol * cellHeight + cellHeight * 0.5;
+
+      const nx = (cursorPxX - this.centerX) / this.unitScale;
+      const ny =
+        (cursorPxY - (this.centerY + yOffsetUnits * this.unitScale)) /
+        this.unitScale;
+      const nxShifted = nx - xOffsetUnits;
+
+      cursorTheta = Math.atan2(ny, nxShifted);
+      cursorDistanceUnits = Math.hypot(nxShifted, ny);
+    }
+
+    this.frameState = {
+      rotationPhase,
+      xOffsetUnits,
+      yOffsetUnits,
+      cursorTheta,
+      cursorDistanceUnits,
+    };
+  }
+
+  updateCursor(x: number | null, y: number | null) {
+    this.crosshairRow = x;
+    this.crosshairCol = y;
   }
 
   /**
@@ -291,6 +365,22 @@ export class Orbweaver {
    */
   getRenderer() {
     return this.renderer;
+  }
+
+  /**
+   * Set the debug crosshair to be shown.
+   * @param show - Whether to show the crosshair.
+   */
+  setDebugCrosshair(show: boolean) {
+    this.debugCrosshair = show;
+  }
+
+  /**
+   * Get the current debug crosshair setting.
+   * @returns Whether the crosshair is shown.
+   */
+  getDebugCrosshair() {
+    return this.debugCrosshair;
   }
 
   /**
