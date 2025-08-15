@@ -14,6 +14,14 @@ It supports:
 - Responsive interaction (mouse, keyboard, audio, etc)
 - Configurable framerate for performance control
 
+## Packages
+
+| Package | Description | Version |
+|---------|-------------|------|
+| `orbweaver-core` | Core library for rendering orbweavers | [![NPM Version](https://img.shields.io/npm/v/orbweaver-core)](https://www.npmjs.com/package/orbweaver-core) |
+| `orbweaver-react` | React bindings for rendering orbweavers | [![NPM Version](https://img.shields.io/npm/v/orbweaver-react)](https://www.npmjs.com/package/orbweaver-react) |
+
+
 ## Usage
 
 ```bash
