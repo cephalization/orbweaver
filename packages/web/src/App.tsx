@@ -265,7 +265,14 @@ function Slider({
 }) {
   const [innerValue, setInnerValue] = useState(defaultValue);
   return (
-    <div style={{ display: "flex", flexDirection: "row", gap: "4px", alignItems: "flex-start" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        gap: "4px",
+        alignItems: "flex-start",
+      }}
+    >
       <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         {label}
         <input
