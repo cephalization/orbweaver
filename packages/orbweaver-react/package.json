@@ -1,6 +1,6 @@
 {
   "name": "orbweaver-react",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Declarative React bindings for Orbweaver",
   "type": "module",
   "private": false,
