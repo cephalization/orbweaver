@@ -2,6 +2,7 @@ import { BlobModel } from "./blob.js";
 import {
   type Renderer,
   CanvasAsciiRenderer,
+  type CanvasAsciiRendererOptions,
   type RendererOptions,
 } from "./renderer.js";
 import {
@@ -10,12 +11,15 @@ import {
   RotateBehavior,
   Channels,
   OrbitBehavior,
+  type RotateParams,
+  type BobParams,
+  type OrbitParams,
 } from "./behavior.js";
 
 export type OrbweaverOptions = {
-  behavior?: Behavior[];
-  renderer: Renderer;
-  fps?: number; // Target frames per second (default: unlimited)
+  behavior?: Behavior[] | undefined;
+  renderer?: Renderer | undefined;
+  fps?: number | undefined; // Target frames per second (default: unlimited)
 };
 
 export type Vector2 = { x: number; y: number };
@@ -28,7 +32,7 @@ const DEFAULT_RENDERER_OPTIONS: RendererOptions = {
 };
 
 export class Orbweaver {
-  private renderer: Renderer;
+  private renderer: Renderer | null = null;
   private blob: BlobModel;
   private animationHandle: number | null = null;
   private startTimeMs: number = 0;
@@ -62,8 +66,10 @@ export class Orbweaver {
         renderer: this.renderer,
         ...DEFAULT_RENDERER_OPTIONS,
       };
-    } else {
+    } else if (optionsOrCanvas.renderer) {
       this.renderer = optionsOrCanvas.renderer;
+      options = optionsOrCanvas;
+    } else {
       options = optionsOrCanvas;
     }
     this.blob = new BlobModel(0.55);
@@ -78,28 +84,18 @@ export class Orbweaver {
       new RotateBehavior({ speed: 1, direction: 1 }),
     ];
     this.setBehavior(providedBehaviors);
-
-    const { width, height } = this.renderer.getPixelSize();
-    this.centerX = width / 2;
-    this.centerY = height / 2;
-    this.unitScale = Math.min(width, height) / 2;
-
-    const grid = this.renderer.getGridSize();
-    this.cols = grid.cols;
-    this.rows = grid.rows;
-
-    this.unsubscribeResize = this.renderer.onResize(() => {
-      const size = this.renderer.getPixelSize();
-      this.centerX = size.width / 2;
-      this.centerY = size.height / 2;
-      this.unitScale = Math.min(size.width, size.height) / 2;
-      const newGrid = this.renderer.getGridSize();
-      this.cols = newGrid.cols;
-      this.rows = newGrid.rows;
-    });
+    // Setup renderer if provided
+    this.cols = 0;
+    this.rows = 0;
+    if (this.renderer) {
+      this.setupRenderer();
+    }
   }
 
   private intensityAt(col: number, row: number, deltaTimeMs: number): number {
+    if (!this.renderer) {
+      throw new Error("Renderer not set");
+    }
     // Advance behaviors once per frame
     if (deltaTimeMs !== this.lastIntegratedDeltaTimeMs) {
       const frameDeltaMs = deltaTimeMs - this.lastIntegratedDeltaTimeMs;
@@ -197,10 +193,27 @@ export class Orbweaver {
     return intensity;
   }
 
+  /**
+   * Get the current behaviors for the orbweaver.
+   * @returns The behaviors.
+   */
   getBehaviors() {
     return this.behaviors;
   }
 
+  /**
+   * Add a behavior to the orbweaver.
+   * There can be multiple behaviors, but only one of each type.
+   * @param behavior - The behavior to add.
+   */
+  addBehavior(behavior: Behavior) {
+    this.behaviors = this.behaviors.filter(b => b.type !== behavior.type).concat(behavior);
+  }
+
+  /**
+   * Set the behaviors for the orbweaver.
+   * @param behavior - The behaviors to set.
+   */
   setBehavior(behavior: Behavior[]) {
     this.behaviors = behavior.map((b) => {
       return b;
@@ -238,12 +251,41 @@ export class Orbweaver {
     return this.targetFPS;
   }
 
+  /**
+   * Set the renderer for the orbweaver.
+   * Recalculates the grid size and center point.
+   * @param renderer - The renderer to use.
+   */
+  setRenderer(renderer: Renderer) {
+    this.renderer = renderer;
+    this.setupRenderer();
+  }
+
+  /**
+   * Get the current renderer for the orbweaver.
+   * @returns The renderer.
+   */
+  getRenderer() {
+    return this.renderer;
+  }
+
+  /**
+   * Start the orbweaver animation loop.
+   * 
+   * Requires a renderer to be set.
+   */
   start() {
+    if (!this.renderer) {
+      throw new Error("Renderer not set");
+    }
     if (this.animationHandle !== null) return;
     this.startTimeMs = performance.now();
     this.lastFrameTimeMs = this.startTimeMs;
-    
+
     const loop = () => {
+      if (!this.renderer) {
+        throw new Error("Renderer not set");
+      }
       const now = performance.now();
       const deltaTimeMs = now - this.startTimeMs;
 
@@ -260,7 +302,7 @@ export class Orbweaver {
       }
 
       this.renderer.render((c, r) => this.intensityAt(c, r, deltaTimeMs));
-      
+
       if (this.frameIntervalMs === null) {
         // Unlimited FPS - use requestAnimationFrame
         this.animationHandle = requestAnimationFrame(loop);
@@ -269,7 +311,7 @@ export class Orbweaver {
         this.animationHandle = setTimeout(loop, this.frameIntervalMs);
       }
     };
-    
+
     if (this.frameIntervalMs === null) {
       this.animationHandle = requestAnimationFrame(loop);
     } else {
@@ -277,6 +319,9 @@ export class Orbweaver {
     }
   }
 
+  /**
+   * Stop the orbweaver animation loop.
+   */
   stop() {
     if (this.animationHandle !== null) {
       if (this.frameIntervalMs === null) {
@@ -303,9 +348,38 @@ export class Orbweaver {
     this.impulseVelocityUnitsPerSecond.x += force.x;
     this.impulseVelocityUnitsPerSecond.y += force.y;
   }
+
+  /**
+   * Setup the renderer for the orbweaver.
+   * Recalculates the grid size and center point.
+   */
+  private setupRenderer() {
+    if (!this.renderer) {
+      throw new Error("Renderer not set");
+    }
+    const { width, height } = this.renderer.getPixelSize();
+    this.centerX = width / 2;
+    this.centerY = height / 2;
+    this.unitScale = Math.min(width, height) / 2;
+
+    const grid = this.renderer.getGridSize();
+    this.cols = grid.cols;
+    this.rows = grid.rows;
+
+    this.unsubscribeResize = this.renderer.onResize(() => {
+      if (!this.renderer) return;
+      const size = this.renderer.getPixelSize();
+      this.centerX = size.width / 2;
+      this.centerY = size.height / 2;
+      this.unitScale = Math.min(size.width, size.height) / 2;
+      const newGrid = this.renderer.getGridSize();
+      this.cols = newGrid.cols;
+      this.rows = newGrid.rows;
+    });
+  }
 }
 
-export { BlobModel, type Renderer, CanvasAsciiRenderer, type RendererOptions };
-export { Behavior, BobBehavior, RotateBehavior, OrbitBehavior, Channels };
+export { BlobModel, type Renderer, CanvasAsciiRenderer, type RendererOptions, type CanvasAsciiRendererOptions };
+export { Behavior, BobBehavior, RotateBehavior, OrbitBehavior, Channels, type RotateParams, type BobParams, type OrbitParams };
 
 export default Orbweaver;
