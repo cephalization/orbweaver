@@ -1,0 +1,36 @@
+{
+  "name": "orbweaver-react",
+  "version": "0.0.0",
+  "description": "Declarative React bindings for Orbweaver",
+  "type": "module",
+  "private": false,
+  "scripts": {
+    "dev": "tsc -w",
+    "build": "tsc",
+    "clean": "rimraf dist node_modules",
+    "typecheck": "tsc --noEmit",
+    "ci:check": "pnpm typecheck"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "keywords": [],
+  "author": "Anthony Powell <powell.anthonyd@proton.me>",
+  "license": "MIT",
+  "packageManager": "pnpm@10.14.0",
+  "devDependencies": {
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "orbweaver-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  }
+}
