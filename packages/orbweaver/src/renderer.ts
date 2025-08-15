@@ -10,9 +10,10 @@ export interface Renderer {
   getGridSize(): { cols: number; rows: number };
   render(intensityAt: (col: number, row: number) => number): void;
   onResize(callback: () => void): () => void;
+  destroy(): void;
 }
 
-type CanvasAsciiRendererOptions = RendererOptions & {
+export type CanvasAsciiRendererOptions = RendererOptions & {
   /**
    * The glyphs to use for rendering.
    * The first glyph is used as the background cell.
@@ -35,9 +36,9 @@ export class CanvasAsciiRenderer implements Renderer {
   private resizeListeners: Array<() => void> = [];
 
   constructor(canvas: HTMLCanvasElement, options?: CanvasAsciiRendererOptions) {
+    this.canvas = canvas;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D canvas context not available");
-    this.canvas = canvas;
     this.ctx = ctx;
     this.dpr = window.devicePixelRatio || 1;
     this.cols = options?.cols ?? 80;
@@ -46,6 +47,18 @@ export class CanvasAsciiRenderer implements Renderer {
     this.background = options?.background ?? "#ffffff";
     this.glyphs = options?.glyphs ?? DEFAULT_GLYPHS;
 
+    this.configureCanvas();
+  }
+
+  getCanvas() {
+    return this.canvas;
+  }
+
+  setCanvas(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("2D canvas context not available");
+    this.ctx = ctx;
     this.configureCanvas();
   }
 
@@ -185,6 +198,9 @@ export class CanvasAsciiRenderer implements Renderer {
   // Renderer interface
   getPixelSize(): { width: number; height: number } {
     const rect = this.canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      console.warn("Canvas is not visible:", rect);
+    }
     return { width: rect.width, height: rect.height };
   }
 
@@ -215,5 +231,12 @@ export class CanvasAsciiRenderer implements Renderer {
 
   setBackground(background: string) {
     this.background = background;
+  }
+
+  destroy() {
+    this.resizeListeners.forEach((listener) => {
+      window.removeEventListener("resize", listener);
+    });
+    this.resizeListeners = [];
   }
 }
