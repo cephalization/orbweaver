@@ -1,4 +1,13 @@
-import { BlobModel } from "./blob.js";
+import {
+  BlobModel,
+  type Harmonic,
+  type HarmonicPreset,
+  type HarmonicPresetName,
+  HARMONIC_PRESETS,
+  type HarmonicGenParams,
+  type FrequencySpacing,
+  type HarmonicInput,
+} from "./blob.js";
 import {
   type Renderer,
   CanvasAsciiRenderer,
@@ -47,6 +56,24 @@ export class Orbweaver {
   private targetFPS: number | null = null; // null means unlimited
   private frameIntervalMs: number | null = null; // null means unlimited
   private lastFrameTimeMs: number = 0; // For frame timing
+  private crosshairRow: number | null = null;
+  private crosshairCol: number | null = null;
+  private debugCrosshair: boolean = false;
+
+  // Cached per-frame state used by per-cell sampling in intensityAt
+  private frameState: {
+    rotationPhase: number;
+    xOffsetUnits: number;
+    yOffsetUnits: number;
+    cursorTheta: number | null;
+    cursorDistanceUnits: number | null;
+  } = {
+    rotationPhase: 0,
+    xOffsetUnits: 0,
+    yOffsetUnits: 0,
+    cursorTheta: null,
+    cursorDistanceUnits: null,
+  };
 
   // Impulse integration state (normalized units)
   private impulseOffsetUnits: Vector2 = { x: 0, y: 0 };
@@ -92,56 +119,18 @@ export class Orbweaver {
     }
   }
 
-  private intensityAt(col: number, row: number, deltaTimeMs: number): number {
+  private intensityAt(col: number, row: number): number {
     if (!this.renderer) {
       throw new Error("Renderer not set");
     }
-    // Advance behaviors once per frame
-    if (deltaTimeMs !== this.lastIntegratedDeltaTimeMs) {
-      const frameDeltaMs = deltaTimeMs - this.lastIntegratedDeltaTimeMs;
-      this.lastIntegratedDeltaTimeMs = deltaTimeMs;
-      const dtSeconds = Math.max(0, frameDeltaMs / 1000);
-      for (const behavior of this.behaviors) {
-        behavior.update(dtSeconds);
-      }
 
-      // Integrate impulse spring-damper toward origin in normalized units
-      if (dtSeconds > 0) {
-        const k = this.impulseStiffness;
-        const c = this.impulseDamping;
-
-        // X axis
-        const ax =
-          -k * this.impulseOffsetUnits.x -
-          c * this.impulseVelocityUnitsPerSecond.x;
-        this.impulseVelocityUnitsPerSecond.x += ax * dtSeconds;
-        this.impulseOffsetUnits.x +=
-          this.impulseVelocityUnitsPerSecond.x * dtSeconds;
-
-        // Y axis
-        const ay =
-          -k * this.impulseOffsetUnits.y -
-          c * this.impulseVelocityUnitsPerSecond.y;
-        this.impulseVelocityUnitsPerSecond.y += ay * dtSeconds;
-        this.impulseOffsetUnits.y +=
-          this.impulseVelocityUnitsPerSecond.y * dtSeconds;
-
-        // Snap to zero when sufficiently small to avoid float drift
-        const eps = 1e-4;
-        if (
-          Math.abs(this.impulseOffsetUnits.x) < eps &&
-          Math.abs(this.impulseVelocityUnitsPerSecond.x) < eps
-        ) {
-          this.impulseOffsetUnits.x = 0;
-          this.impulseVelocityUnitsPerSecond.x = 0;
-        }
-        if (
-          Math.abs(this.impulseOffsetUnits.y) < eps &&
-          Math.abs(this.impulseVelocityUnitsPerSecond.y) < eps
-        ) {
-          this.impulseOffsetUnits.y = 0;
-          this.impulseVelocityUnitsPerSecond.y = 0;
-        }
+    if (
+      this.debugCrosshair &&
+      this.crosshairRow !== null &&
+      this.crosshairCol !== null
+    ) {
+      if (col === this.crosshairRow && row === this.crosshairCol) {
+        return 1;
       }
     }
 
@@ -153,21 +142,9 @@ export class Orbweaver {
     const y = row * cellHeight + cellHeight * 0.5;
 
     const nx = (x - this.centerX) / this.unitScale;
-    // Gather contributions from behaviors for this frame
-    let rotationPhase = 0;
-    let yOffsetUnits = 0;
-    let xOffsetUnits = 0;
-    for (const behavior of this.behaviors) {
-      const acc: Record<string, number> = {};
-      behavior.contribute(acc);
-      rotationPhase += acc[Channels.rotationPhase] ?? 0;
-      yOffsetUnits += acc[Channels.yOffsetUnits] ?? 0;
-      xOffsetUnits += acc[Channels.xOffsetUnits] ?? 0;
-    }
-
-    // Apply impulse offsets in concert with behaviors (normalized units)
-    xOffsetUnits += this.impulseOffsetUnits.x;
-    yOffsetUnits += this.impulseOffsetUnits.y;
+    // Use cached per-frame contributions
+    const { rotationPhase, xOffsetUnits, yOffsetUnits, cursorTheta } =
+      this.frameState;
 
     const ny =
       (y - (this.centerY + yOffsetUnits * this.unitScale)) / this.unitScale;
@@ -176,7 +153,25 @@ export class Orbweaver {
     const r = Math.hypot(nxShifted, ny) + 1e-6;
     const theta = Math.atan2(ny, nxShifted);
     // Use aggregated rotation phase from behaviors
-    const radius = this.blob.radiusAt(theta, rotationPhase);
+    const baseRadius = this.blob.radiusAt(theta, rotationPhase);
+
+    // If we have a cursor angle, reduce the radius in that angular direction
+    // using a simple cosine falloff centered at the cursor angle
+    let radius = baseRadius;
+    if (cursorTheta !== null) {
+      const angleDiff = theta - cursorTheta;
+      const angularFalloff = Math.max(0, Math.cos(angleDiff)); // [0,1]
+      // Distance falloff: closer cursor -> stronger effect. Clamp to [0,1].
+      // Map distance [0, 1+] to influence [1, 0] with a soft curve.
+      const d = Math.min(
+        1,
+        Math.max(0, this.frameState.cursorDistanceUnits ?? 1)
+      );
+      const distanceInfluence = 1 - d; // 1 at center, 0 at or beyond radius 1
+      const strength = 0.9; // base compression strength
+      const combined = angularFalloff * distanceInfluence;
+      radius = baseRadius * (1 - strength * combined);
+    }
 
     // Interior intensity: higher near center, taper to boundary
     const interior = Math.max(0, 1 - r / (radius + 1e-6));
@@ -194,6 +189,125 @@ export class Orbweaver {
   }
 
   /**
+   * Replace the blob's harmonics. Accepts either an explicit array of harmonics
+   * or generation parameters.
+   */
+  setBlobHarmonics(input: HarmonicInput): void {
+    this.blob.setHarmonics(input);
+  }
+
+  /**
+   * Replace the blob's harmonics using generation parameters.
+   */
+  setBlobHarmonicParams(params: HarmonicGenParams): void {
+    this.blob.setHarmonicParams(params);
+  }
+
+  /**
+   * Advance per-frame state: behaviors, impulse integration, and accumulator.
+   */
+  private advanceBehaviors(dtSeconds: number): void {
+    // Advance behaviors
+    for (const behavior of this.behaviors) {
+      behavior.update(Math.max(0, dtSeconds));
+    }
+
+    // Integrate impulse spring-damper toward origin in normalized units
+    if (dtSeconds > 0) {
+      const k = this.impulseStiffness;
+      const c = this.impulseDamping;
+
+      // X axis
+      const ax =
+        -k * this.impulseOffsetUnits.x -
+        c * this.impulseVelocityUnitsPerSecond.x;
+      this.impulseVelocityUnitsPerSecond.x += ax * dtSeconds;
+      this.impulseOffsetUnits.x +=
+        this.impulseVelocityUnitsPerSecond.x * dtSeconds;
+
+      // Y axis
+      const ay =
+        -k * this.impulseOffsetUnits.y -
+        c * this.impulseVelocityUnitsPerSecond.y;
+      this.impulseVelocityUnitsPerSecond.y += ay * dtSeconds;
+      this.impulseOffsetUnits.y +=
+        this.impulseVelocityUnitsPerSecond.y * dtSeconds;
+
+      // Snap to zero when sufficiently small to avoid float drift
+      const eps = 1e-4;
+      if (
+        Math.abs(this.impulseOffsetUnits.x) < eps &&
+        Math.abs(this.impulseVelocityUnitsPerSecond.x) < eps
+      ) {
+        this.impulseOffsetUnits.x = 0;
+        this.impulseVelocityUnitsPerSecond.x = 0;
+      }
+      if (
+        Math.abs(this.impulseOffsetUnits.y) < eps &&
+        Math.abs(this.impulseVelocityUnitsPerSecond.y) < eps
+      ) {
+        this.impulseOffsetUnits.y = 0;
+        this.impulseVelocityUnitsPerSecond.y = 0;
+      }
+    }
+
+    // Accumulate contributions for this frame
+    let rotationPhase = 0;
+    let yOffsetUnits = 0;
+    let xOffsetUnits = 0;
+    for (const behavior of this.behaviors) {
+      const acc: Record<string, number> = {};
+      behavior.contribute(acc);
+      rotationPhase += acc[Channels.rotationPhase] ?? 0;
+      yOffsetUnits += acc[Channels.yOffsetUnits] ?? 0;
+      xOffsetUnits += acc[Channels.xOffsetUnits] ?? 0;
+    }
+
+    // Apply impulse offsets in concert with behaviors (normalized units)
+    xOffsetUnits += this.impulseOffsetUnits.x;
+    yOffsetUnits += this.impulseOffsetUnits.y;
+
+    // Compute cursor angle and distance relative to the blob center in normalized space, if available
+    let cursorTheta: number | null = null;
+    let cursorDistanceUnits: number | null = null;
+    if (
+      this.renderer &&
+      this.crosshairRow !== null &&
+      this.crosshairCol !== null &&
+      this.cols > 0 &&
+      this.rows > 0
+    ) {
+      const { width, height } = this.renderer.getPixelSize();
+      const cellWidth = width / this.cols;
+      const cellHeight = height / this.rows;
+      const cursorPxX = this.crosshairRow * cellWidth + cellWidth * 0.5;
+      const cursorPxY = this.crosshairCol * cellHeight + cellHeight * 0.5;
+
+      const nx = (cursorPxX - this.centerX) / this.unitScale;
+      const ny =
+        (cursorPxY - (this.centerY + yOffsetUnits * this.unitScale)) /
+        this.unitScale;
+      const nxShifted = nx - xOffsetUnits;
+
+      cursorTheta = Math.atan2(ny, nxShifted);
+      cursorDistanceUnits = Math.hypot(nxShifted, ny);
+    }
+
+    this.frameState = {
+      rotationPhase,
+      xOffsetUnits,
+      yOffsetUnits,
+      cursorTheta,
+      cursorDistanceUnits,
+    };
+  }
+
+  updateCursor(x: number | null, y: number | null) {
+    this.crosshairRow = x;
+    this.crosshairCol = y;
+  }
+
+  /**
    * Get the current behaviors for the orbweaver.
    * @returns The behaviors.
    */
@@ -207,7 +321,9 @@ export class Orbweaver {
    * @param behavior - The behavior to add.
    */
   addBehavior(behavior: Behavior) {
-    this.behaviors = this.behaviors.filter(b => b.type !== behavior.type).concat(behavior);
+    this.behaviors = this.behaviors
+      .filter((b) => b.type !== behavior.type)
+      .concat(behavior);
   }
 
   /**
@@ -270,8 +386,24 @@ export class Orbweaver {
   }
 
   /**
+   * Set the debug crosshair to be shown.
+   * @param show - Whether to show the crosshair.
+   */
+  setDebugCrosshair(show: boolean) {
+    this.debugCrosshair = show;
+  }
+
+  /**
+   * Get the current debug crosshair setting.
+   * @returns Whether the crosshair is shown.
+   */
+  getDebugCrosshair() {
+    return this.debugCrosshair;
+  }
+
+  /**
    * Start the orbweaver animation loop.
-   * 
+   *
    * Requires a renderer to be set.
    */
   start() {
@@ -301,7 +433,13 @@ export class Orbweaver {
         this.lastFrameTimeMs = now;
       }
 
-      this.renderer.render((c, r) => this.intensityAt(c, r, deltaTimeMs));
+      // Advance per-frame state once per rendered frame
+      const frameDeltaMs = deltaTimeMs - this.lastIntegratedDeltaTimeMs;
+      this.lastIntegratedDeltaTimeMs = deltaTimeMs;
+      const dtSeconds = Math.max(0, frameDeltaMs / 1000);
+      this.advanceBehaviors(dtSeconds);
+
+      this.renderer.render((c, r) => this.intensityAt(c, r));
 
       if (this.frameIntervalMs === null) {
         // Unlimited FPS - use requestAnimationFrame
@@ -379,7 +517,29 @@ export class Orbweaver {
   }
 }
 
-export { BlobModel, type Renderer, CanvasAsciiRenderer, type RendererOptions, type CanvasAsciiRendererOptions };
-export { Behavior, BobBehavior, RotateBehavior, OrbitBehavior, Channels, type RotateParams, type BobParams, type OrbitParams };
+export {
+  BlobModel,
+  type Harmonic,
+  type HarmonicPreset,
+  type HarmonicPresetName,
+  HARMONIC_PRESETS,
+  type HarmonicGenParams,
+  type FrequencySpacing,
+  type HarmonicInput,
+  type Renderer,
+  CanvasAsciiRenderer,
+  type RendererOptions,
+  type CanvasAsciiRendererOptions,
+};
+export {
+  Behavior,
+  BobBehavior,
+  RotateBehavior,
+  OrbitBehavior,
+  Channels,
+  type RotateParams,
+  type BobParams,
+  type OrbitParams,
+};
 
 export default Orbweaver;

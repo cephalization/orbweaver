@@ -5,6 +5,7 @@ import {
   OrbitBehavior,
   Orbweaver,
   RotateBehavior,
+  type HarmonicGenParams,
 } from "orbweaver-core";
 
 function App() {
@@ -16,6 +17,12 @@ function App() {
     rotate: RotateBehavior;
     orbit: OrbitBehavior;
   } | null>(null);
+  const harmonicsParamsRef = useRef<HarmonicGenParams>({
+    numHarmonics: 4,
+    baseFrequency: 3,
+    frequencySpacing: "harmonic" as "harmonic" | "geometric" | "additive",
+    phaseSpread: Math.PI / 8,
+  });
   const [defaultValues, setDefaultValues] = useState({
     bob: { amplitude: 0.05, rate: 1 },
     rotate: { speed: 2.5, direction: -1 },
@@ -52,8 +59,11 @@ function App() {
       behavior: [bob, rotate, orbit],
       fps: defaultValues.fps, // Set initial FPS
     });
+    ow.setDebugCrosshair(true);
     behaviorsRef.current = { bob, rotate, orbit };
     orbweaverRef.current = ow;
+    // Initialize blob harmonics from defaults
+    ow.setBlobHarmonicParams(harmonicsParamsRef.current);
     setDefaultValues((dv) => ({
       ...dv,
       bob: { amplitude: bob.amplitude, rate: bob.rate },
@@ -76,11 +86,23 @@ function App() {
       orbweaverRef.current?.impulse({ x: ux * strength, y: uy * strength });
     };
     canvas.addEventListener("click", onClick);
+
+    const onMouseMove = (e: MouseEvent) => {
+      const { row, col } = renderer.clientToCell(e.clientX, e.clientY);
+      orbweaverRef.current?.updateCursor(col, row);
+    };
+    const onMouseLeave = () => {
+      orbweaverRef.current?.updateCursor(null, null);
+    };
+    canvas.addEventListener("mousemove", onMouseMove);
+    canvas.addEventListener("mouseleave", onMouseLeave);
     return () => {
       ow.stop();
       orbweaverRef.current = null;
       behaviorsRef.current = null;
       canvas.removeEventListener("click", onClick);
+      canvas.removeEventListener("mousemove", onMouseMove);
+      canvas.removeEventListener("mouseleave", onMouseLeave);
     };
   }, []);
 
@@ -230,6 +252,71 @@ function App() {
               orbweaverRef.current?.setTargetFPS(value);
             }}
           />
+          {/* Blob Harmonics Controls */}
+          <Slider
+            label="Num Harmonics"
+            min={1}
+            max={12}
+            step={1}
+            defaultValue={harmonicsParamsRef.current.numHarmonics}
+            onChange={(value) => {
+              const v = Math.round(value);
+              harmonicsParamsRef.current.numHarmonics = v;
+              const p = harmonicsParamsRef.current;
+              orbweaverRef.current?.setBlobHarmonicParams({ ...p });
+            }}
+          />
+          <Slider
+            label="Base Frequency"
+            min={1}
+            max={12}
+            step={1}
+            defaultValue={harmonicsParamsRef.current.baseFrequency}
+            onChange={(value) => {
+              const v = Math.round(value);
+              harmonicsParamsRef.current.baseFrequency = v;
+              const p = harmonicsParamsRef.current;
+              orbweaverRef.current?.setBlobHarmonicParams({ ...p });
+            }}
+          />
+          <Slider
+            label="Frequency Spacing"
+            min={0}
+            max={2}
+            step={1}
+            defaultValue={["harmonic", "geometric", "additive"].indexOf(
+              harmonicsParamsRef.current.frequencySpacing
+            )}
+            valueFormatter={(v: number) => {
+              const idx = Math.max(0, Math.min(2, Math.round(v)));
+              return idx === 0
+                ? "harmonic"
+                : idx === 1
+                ? "geometric"
+                : "additive";
+            }}
+            onChange={(value) => {
+              const idx = Math.round(value);
+              const mode =
+                idx === 0 ? "harmonic" : idx === 1 ? "geometric" : "additive";
+              harmonicsParamsRef.current.frequencySpacing = mode;
+              const p = harmonicsParamsRef.current;
+              orbweaverRef.current?.setBlobHarmonicParams({ ...p });
+            }}
+          />
+          <Slider
+            label="Phase Spread (rad)"
+            min={0}
+            max={Math.PI}
+            step={0.05}
+            defaultValue={harmonicsParamsRef.current.phaseSpread}
+            valueFormatter={(v: number) => `${v.toFixed(2)} rad`}
+            onChange={(value) => {
+              harmonicsParamsRef.current.phaseSpread = value;
+              const p = harmonicsParamsRef.current;
+              orbweaverRef.current?.setBlobHarmonicParams({ ...p });
+            }}
+          />
         </div>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -255,6 +342,7 @@ function Slider({
   step,
   defaultValue,
   onChange,
+  valueFormatter,
 }: {
   label: string;
   min: number;
@@ -262,10 +350,18 @@ function Slider({
   step: number;
   defaultValue: number;
   onChange: (value: number) => void;
+  valueFormatter?: (value: number) => string;
 }) {
   const [innerValue, setInnerValue] = useState(defaultValue);
   return (
-    <div style={{ display: "flex", flexDirection: "row", gap: "4px", alignItems: "flex-start" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        gap: "4px",
+        alignItems: "flex-start",
+      }}
+    >
       <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         {label}
         <input
@@ -281,7 +377,9 @@ function Slider({
           }}
         />
       </label>
-      <span style={{ color: "#9EDDB0" }}>{innerValue}</span>
+      <span style={{ color: "#9EDDB0" }}>
+        {valueFormatter ? valueFormatter(innerValue) : innerValue}
+      </span>
     </div>
   );
 }
