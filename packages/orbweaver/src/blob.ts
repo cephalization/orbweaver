@@ -1,6 +1,18 @@
 export type Harmonic = { amplitude: number; frequency: number; phase: number };
 export type HarmonicPreset = Harmonic[];
 
+export type FrequencySpacing = "harmonic" | "geometric" | "additive";
+
+export type HarmonicGenParams = {
+  numHarmonics: number;
+  baseFrequency: number;
+  frequencySpacing: FrequencySpacing;
+  /** Radians added per harmonic index for a simple progressive phase */
+  phaseSpread: number;
+};
+
+export type HarmonicInput = HarmonicGenParams | Harmonic[];
+
 export type HarmonicPresetName =
   | "minimal"
   | "classic"
@@ -42,15 +54,82 @@ export const HARMONIC_PRESETS: Record<HarmonicPresetName, HarmonicPreset> = {
   ],
 };
 
+/**
+ * Generate a simple set of harmonics from a small parameter set.
+ *
+ * Defaults used for spacing specifics:
+ * - geometric ratio = 1.7
+ * - additive step = 1
+ *
+ * Amplitude profile: A_i = 1 / (i + 1)
+ */
+export function generateHarmonics(params: HarmonicGenParams): Harmonic[] {
+  const { numHarmonics, baseFrequency, frequencySpacing, phaseSpread } = params;
+  const harmonics: Harmonic[] = [];
+
+  const geometricRatio = 1.7;
+  const additiveStep = 1;
+
+  for (let i = 0; i < numHarmonics; i++) {
+    const amplitude = 1 / (i + 1);
+
+    let frequency: number;
+    switch (frequencySpacing) {
+      case "harmonic":
+        frequency = baseFrequency * (i + 1);
+        break;
+      case "geometric":
+        frequency = baseFrequency * Math.pow(geometricRatio, i);
+        break;
+      case "additive":
+        frequency = baseFrequency + additiveStep * i;
+        break;
+      default:
+        frequency = baseFrequency * (i + 1);
+        break;
+    }
+
+    const phase = i * phaseSpread;
+
+    harmonics.push({ amplitude, frequency, phase });
+  }
+
+  return harmonics;
+}
+
 export class BlobModel {
   baseRadius: number;
   amplitude: number;
   harmonics: Harmonic[];
 
-  constructor(baseRadius = 0.5) {
+  constructor(baseRadius = 0.5, input?: HarmonicInput) {
     this.baseRadius = baseRadius;
     this.amplitude = 0.12;
-    this.harmonics = HARMONIC_PRESETS.complex;
+    if (!input) {
+      this.harmonics = HARMONIC_PRESETS.rippled;
+    } else if (Array.isArray(input)) {
+      this.harmonics = input;
+    } else {
+      this.harmonics = generateHarmonics(input);
+    }
+  }
+
+  /**
+   * Replace the current harmonics with a newly generated set from params.
+   */
+  setHarmonicParams(params: HarmonicGenParams): void {
+    this.setHarmonics(params);
+  }
+
+  /**
+   * Replace the current harmonics either by direct array or by generation params.
+   */
+  setHarmonics(input: HarmonicInput): void {
+    if (Array.isArray(input)) {
+      this.harmonics = input;
+    } else {
+      this.harmonics = generateHarmonics(input);
+    }
   }
 
   radiusAt(angle: number, timeSeconds: number): number {
