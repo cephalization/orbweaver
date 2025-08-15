@@ -1,4 +1,10 @@
-import { BlobModel } from "./blob.js";
+import {
+  BlobModel,
+  type Harmonic,
+  type HarmonicPreset,
+  type HarmonicPresetName,
+  HARMONIC_PRESETS,
+} from "./blob.js";
 import {
   type Renderer,
   CanvasAsciiRenderer,
@@ -48,6 +54,17 @@ export class Orbweaver {
   private frameIntervalMs: number | null = null; // null means unlimited
   private lastFrameTimeMs: number = 0; // For frame timing
 
+  // Cached per-frame state used by per-cell sampling in intensityAt
+  private frameState: {
+    rotationPhase: number;
+    xOffsetUnits: number;
+    yOffsetUnits: number;
+  } = {
+    rotationPhase: 0,
+    xOffsetUnits: 0,
+    yOffsetUnits: 0,
+  };
+
   // Impulse integration state (normalized units)
   private impulseOffsetUnits: Vector2 = { x: 0, y: 0 };
   private impulseVelocityUnitsPerSecond: Vector2 = { x: 0, y: 0 };
@@ -92,59 +109,10 @@ export class Orbweaver {
     }
   }
 
-  private intensityAt(col: number, row: number, deltaTimeMs: number): number {
+  private intensityAt(col: number, row: number): number {
     if (!this.renderer) {
       throw new Error("Renderer not set");
     }
-    // Advance behaviors once per frame
-    if (deltaTimeMs !== this.lastIntegratedDeltaTimeMs) {
-      const frameDeltaMs = deltaTimeMs - this.lastIntegratedDeltaTimeMs;
-      this.lastIntegratedDeltaTimeMs = deltaTimeMs;
-      const dtSeconds = Math.max(0, frameDeltaMs / 1000);
-      for (const behavior of this.behaviors) {
-        behavior.update(dtSeconds);
-      }
-
-      // Integrate impulse spring-damper toward origin in normalized units
-      if (dtSeconds > 0) {
-        const k = this.impulseStiffness;
-        const c = this.impulseDamping;
-
-        // X axis
-        const ax =
-          -k * this.impulseOffsetUnits.x -
-          c * this.impulseVelocityUnitsPerSecond.x;
-        this.impulseVelocityUnitsPerSecond.x += ax * dtSeconds;
-        this.impulseOffsetUnits.x +=
-          this.impulseVelocityUnitsPerSecond.x * dtSeconds;
-
-        // Y axis
-        const ay =
-          -k * this.impulseOffsetUnits.y -
-          c * this.impulseVelocityUnitsPerSecond.y;
-        this.impulseVelocityUnitsPerSecond.y += ay * dtSeconds;
-        this.impulseOffsetUnits.y +=
-          this.impulseVelocityUnitsPerSecond.y * dtSeconds;
-
-        // Snap to zero when sufficiently small to avoid float drift
-        const eps = 1e-4;
-        if (
-          Math.abs(this.impulseOffsetUnits.x) < eps &&
-          Math.abs(this.impulseVelocityUnitsPerSecond.x) < eps
-        ) {
-          this.impulseOffsetUnits.x = 0;
-          this.impulseVelocityUnitsPerSecond.x = 0;
-        }
-        if (
-          Math.abs(this.impulseOffsetUnits.y) < eps &&
-          Math.abs(this.impulseVelocityUnitsPerSecond.y) < eps
-        ) {
-          this.impulseOffsetUnits.y = 0;
-          this.impulseVelocityUnitsPerSecond.y = 0;
-        }
-      }
-    }
-
     // Map grid to normalized device coordinates [-1, 1]
     const { width, height } = this.renderer.getPixelSize();
     const cellWidth = width / this.cols;
@@ -153,21 +121,8 @@ export class Orbweaver {
     const y = row * cellHeight + cellHeight * 0.5;
 
     const nx = (x - this.centerX) / this.unitScale;
-    // Gather contributions from behaviors for this frame
-    let rotationPhase = 0;
-    let yOffsetUnits = 0;
-    let xOffsetUnits = 0;
-    for (const behavior of this.behaviors) {
-      const acc: Record<string, number> = {};
-      behavior.contribute(acc);
-      rotationPhase += acc[Channels.rotationPhase] ?? 0;
-      yOffsetUnits += acc[Channels.yOffsetUnits] ?? 0;
-      xOffsetUnits += acc[Channels.xOffsetUnits] ?? 0;
-    }
-
-    // Apply impulse offsets in concert with behaviors (normalized units)
-    xOffsetUnits += this.impulseOffsetUnits.x;
-    yOffsetUnits += this.impulseOffsetUnits.y;
+    // Use cached per-frame contributions
+    const { rotationPhase, xOffsetUnits, yOffsetUnits } = this.frameState;
 
     const ny =
       (y - (this.centerY + yOffsetUnits * this.unitScale)) / this.unitScale;
@@ -194,6 +149,73 @@ export class Orbweaver {
   }
 
   /**
+   * Advance per-frame state: behaviors, impulse integration, and accumulator.
+   */
+  private advanceBehaviors(dtSeconds: number): void {
+    // Advance behaviors
+    for (const behavior of this.behaviors) {
+      behavior.update(Math.max(0, dtSeconds));
+    }
+
+    // Integrate impulse spring-damper toward origin in normalized units
+    if (dtSeconds > 0) {
+      const k = this.impulseStiffness;
+      const c = this.impulseDamping;
+
+      // X axis
+      const ax =
+        -k * this.impulseOffsetUnits.x -
+        c * this.impulseVelocityUnitsPerSecond.x;
+      this.impulseVelocityUnitsPerSecond.x += ax * dtSeconds;
+      this.impulseOffsetUnits.x +=
+        this.impulseVelocityUnitsPerSecond.x * dtSeconds;
+
+      // Y axis
+      const ay =
+        -k * this.impulseOffsetUnits.y -
+        c * this.impulseVelocityUnitsPerSecond.y;
+      this.impulseVelocityUnitsPerSecond.y += ay * dtSeconds;
+      this.impulseOffsetUnits.y +=
+        this.impulseVelocityUnitsPerSecond.y * dtSeconds;
+
+      // Snap to zero when sufficiently small to avoid float drift
+      const eps = 1e-4;
+      if (
+        Math.abs(this.impulseOffsetUnits.x) < eps &&
+        Math.abs(this.impulseVelocityUnitsPerSecond.x) < eps
+      ) {
+        this.impulseOffsetUnits.x = 0;
+        this.impulseVelocityUnitsPerSecond.x = 0;
+      }
+      if (
+        Math.abs(this.impulseOffsetUnits.y) < eps &&
+        Math.abs(this.impulseVelocityUnitsPerSecond.y) < eps
+      ) {
+        this.impulseOffsetUnits.y = 0;
+        this.impulseVelocityUnitsPerSecond.y = 0;
+      }
+    }
+
+    // Accumulate contributions for this frame
+    let rotationPhase = 0;
+    let yOffsetUnits = 0;
+    let xOffsetUnits = 0;
+    for (const behavior of this.behaviors) {
+      const acc: Record<string, number> = {};
+      behavior.contribute(acc);
+      rotationPhase += acc[Channels.rotationPhase] ?? 0;
+      yOffsetUnits += acc[Channels.yOffsetUnits] ?? 0;
+      xOffsetUnits += acc[Channels.xOffsetUnits] ?? 0;
+    }
+
+    // Apply impulse offsets in concert with behaviors (normalized units)
+    xOffsetUnits += this.impulseOffsetUnits.x;
+    yOffsetUnits += this.impulseOffsetUnits.y;
+
+    this.frameState = { rotationPhase, xOffsetUnits, yOffsetUnits };
+  }
+
+  /**
    * Get the current behaviors for the orbweaver.
    * @returns The behaviors.
    */
@@ -207,7 +229,9 @@ export class Orbweaver {
    * @param behavior - The behavior to add.
    */
   addBehavior(behavior: Behavior) {
-    this.behaviors = this.behaviors.filter(b => b.type !== behavior.type).concat(behavior);
+    this.behaviors = this.behaviors
+      .filter((b) => b.type !== behavior.type)
+      .concat(behavior);
   }
 
   /**
@@ -271,7 +295,7 @@ export class Orbweaver {
 
   /**
    * Start the orbweaver animation loop.
-   * 
+   *
    * Requires a renderer to be set.
    */
   start() {
@@ -301,7 +325,13 @@ export class Orbweaver {
         this.lastFrameTimeMs = now;
       }
 
-      this.renderer.render((c, r) => this.intensityAt(c, r, deltaTimeMs));
+      // Advance per-frame state once per rendered frame
+      const frameDeltaMs = deltaTimeMs - this.lastIntegratedDeltaTimeMs;
+      this.lastIntegratedDeltaTimeMs = deltaTimeMs;
+      const dtSeconds = Math.max(0, frameDeltaMs / 1000);
+      this.advanceBehaviors(dtSeconds);
+
+      this.renderer.render((c, r) => this.intensityAt(c, r));
 
       if (this.frameIntervalMs === null) {
         // Unlimited FPS - use requestAnimationFrame
@@ -379,7 +409,26 @@ export class Orbweaver {
   }
 }
 
-export { BlobModel, type Renderer, CanvasAsciiRenderer, type RendererOptions, type CanvasAsciiRendererOptions };
-export { Behavior, BobBehavior, RotateBehavior, OrbitBehavior, Channels, type RotateParams, type BobParams, type OrbitParams };
+export {
+  BlobModel,
+  type Harmonic,
+  type HarmonicPreset,
+  type HarmonicPresetName,
+  HARMONIC_PRESETS,
+  type Renderer,
+  CanvasAsciiRenderer,
+  type RendererOptions,
+  type CanvasAsciiRendererOptions,
+};
+export {
+  Behavior,
+  BobBehavior,
+  RotateBehavior,
+  OrbitBehavior,
+  Channels,
+  type RotateParams,
+  type BobParams,
+  type OrbitParams,
+};
 
 export default Orbweaver;
