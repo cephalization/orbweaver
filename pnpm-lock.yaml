@@ -27,11 +27,39 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
 
+  packages/orbweaver-react:
+    dependencies:
+      orbweaver-core:
+        specifier: workspace:*
+        version: link:../orbweaver
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.9
+        version: 19.1.9
+      '@types/react-dom':
+        specifier: ^19.1.7
+        version: 19.1.7(@types/react@19.1.9)
+      react:
+        specifier: ^19.1.1
+        version: 19.1.1
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.1.1(react@19.1.1)
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+
   packages/web:
     dependencies:
       orbweaver-core:
         specifier: workspace:*
         version: link:../orbweaver
+      orbweaver-react:
+        specifier: workspace:*
+        version: link:../orbweaver-react
       react:
         specifier: ^19.1.1
         version: 19.1.1

@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "orbweaver-core": "workspace:*",
+    "orbweaver-react": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   }
