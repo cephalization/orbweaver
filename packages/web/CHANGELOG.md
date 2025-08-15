@@ -1,5 +1,13 @@
 # web
 
+## 1.0.9
+
+### Patch Changes
+
+- Updated dependencies [640f176]
+  - orbweaver-core@0.3.0
+  - orbweaver-react@0.1.0
+
 ## 1.0.8
 
 ### Patch Changes

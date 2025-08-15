@@ -1,5 +1,11 @@
 # orbweaver-core
 
+## 0.3.0
+
+### Minor Changes
+
+- 640f176: Create orbweaver-react package, add affordances to orbweaver-core in support
+
 ## 0.2.4
 
 ### Patch Changes
