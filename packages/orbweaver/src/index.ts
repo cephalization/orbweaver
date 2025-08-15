@@ -4,6 +4,9 @@ import {
   type HarmonicPreset,
   type HarmonicPresetName,
   HARMONIC_PRESETS,
+  type HarmonicGenParams,
+  type FrequencySpacing,
+  type HarmonicInput,
 } from "./blob.js";
 import {
   type Renderer,
@@ -183,6 +186,21 @@ export class Orbweaver {
     // Combine interior and rim and clamp
     const intensity = Math.min(1, interior * 0.85 + rim * 0.35);
     return intensity;
+  }
+
+  /**
+   * Replace the blob's harmonics. Accepts either an explicit array of harmonics
+   * or generation parameters.
+   */
+  setBlobHarmonics(input: HarmonicInput): void {
+    this.blob.setHarmonics(input);
+  }
+
+  /**
+   * Replace the blob's harmonics using generation parameters.
+   */
+  setBlobHarmonicParams(params: HarmonicGenParams): void {
+    this.blob.setHarmonicParams(params);
   }
 
   /**
@@ -505,6 +523,9 @@ export {
   type HarmonicPreset,
   type HarmonicPresetName,
   HARMONIC_PRESETS,
+  type HarmonicGenParams,
+  type FrequencySpacing,
+  type HarmonicInput,
   type Renderer,
   CanvasAsciiRenderer,
   type RendererOptions,
