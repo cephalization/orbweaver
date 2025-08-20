@@ -86,7 +86,7 @@ function App() {
       orbweaverRef.current?.impulse({ x: ux * strength, y: uy * strength });
     };
     canvas.addEventListener("click", onClick);
-
+    // Drag cursor to sync mouse position to orbweaver
     const onMouseMove = (e: MouseEvent) => {
       const { row, col } = renderer.clientToCell(e.clientX, e.clientY);
       orbweaverRef.current?.updateCursor(col, row);
@@ -292,8 +292,8 @@ function App() {
               return idx === 0
                 ? "harmonic"
                 : idx === 1
-                ? "geometric"
-                : "additive";
+                  ? "geometric"
+                  : "additive";
             }}
             onChange={(value) => {
               const idx = Math.round(value);
