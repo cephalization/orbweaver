@@ -1,7 +1,7 @@
 /**
  * Well-known behavior types.
  */
-export type BehaviorType = "bob" | "rotate" | "orbit";
+export type BehaviorType = "bob" | "rotate" | "orbit" | "crosshair";
 
 /**
 s * Open accumulator: behaviors add numeric channels by string keys.
@@ -26,6 +26,8 @@ export const Channels = {
   rotationPhase: "orbweaver.rotationPhase",
   xOffsetUnits: "orbweaver.xOffsetUnits",
   yOffsetUnits: "orbweaver.yOffsetUnits",
+  // When > 0, enables cursor-driven crosshair deformation. Acts as a strength multiplier.
+  cursorInfluence: "orbweaver.cursorInfluence",
 } as const;
 
 /**
@@ -192,5 +194,43 @@ export class OrbitBehavior extends Behavior {
     if (this.axis === "y" || this.axis === "both") {
       acc[Channels.yOffsetUnits] = (acc[Channels.yOffsetUnits] ?? 0) + y;
     }
+  }
+}
+
+export type CrosshairParams = {
+  /**
+   * Strength multiplier for the cursor deformation effect in [0, 1].
+   * 0 disables; 1 is full strength.
+   */
+  strength?: number;
+};
+
+/**
+ * Enables the crosshair/cursor deformation effect when present.
+ * Contributes a strength value to the frame accumulator that gates
+ * and scales the effect inside the core renderer.
+ */
+export class CrosshairBehavior extends Behavior {
+  readonly type = "crosshair" as const;
+
+  private strength: number;
+
+  constructor(params?: CrosshairParams) {
+    super();
+    this.strength = Math.max(0, Math.min(1, params?.strength ?? 1));
+  }
+
+  set(params: Partial<CrosshairParams>): void {
+    if (params.strength !== undefined) {
+      this.strength = Math.max(0, Math.min(1, params.strength));
+    }
+  }
+
+  update(_deltaTimeSeconds: number): void {
+    // No time-based evolution needed; effect is purely gating/scaling.
+  }
+
+  contribute(acc: FrameAccumulator): void {
+    acc[Channels.cursorInfluence] = (acc[Channels.cursorInfluence] ?? 0) + this.strength;
   }
 }

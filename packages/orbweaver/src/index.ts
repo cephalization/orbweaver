@@ -25,6 +25,8 @@ import {
   type RotateParams,
   type BobParams,
   type OrbitParams,
+  CrosshairBehavior,
+  type CrosshairParams,
 } from "./behavior.js";
 
 export type OrbweaverOptions = {
@@ -69,12 +71,14 @@ export class Orbweaver {
     yOffsetUnits: number;
     cursorTheta: number | null;
     cursorDistanceUnits: number | null;
+    cursorInfluence: number;
   } = {
       rotationPhase: 0,
       xOffsetUnits: 0,
       yOffsetUnits: 0,
       cursorTheta: null,
       cursorDistanceUnits: null,
+      cursorInfluence: 0,
     };
 
   // Impulse integration state (normalized units)
@@ -145,7 +149,7 @@ export class Orbweaver {
 
     const nx = (x - this.centerX) / this.unitScale;
     // Use cached per-frame contributions
-    const { rotationPhase, xOffsetUnits, yOffsetUnits, cursorTheta } =
+    const { rotationPhase, xOffsetUnits, yOffsetUnits, cursorTheta, cursorInfluence } =
       this.frameState;
 
     const ny =
@@ -160,7 +164,7 @@ export class Orbweaver {
     // If we have a cursor angle, reduce the radius in that angular direction
     // using a simple cosine falloff centered at the cursor angle
     let radius = baseRadius;
-    if (cursorTheta !== null) {
+    if (cursorTheta !== null && cursorInfluence > 0) {
       const angleDiff = theta - cursorTheta;
       const angularFalloff = Math.max(0, Math.cos(angleDiff)); // [0,1]
       // Distance falloff: closer cursor -> stronger effect. Clamp to [0,1].
@@ -170,7 +174,7 @@ export class Orbweaver {
         Math.max(0, this.frameState.cursorDistanceUnits ?? 1)
       );
       const distanceInfluence = 1 - d; // 1 at center, 0 at or beyond radius 1
-      const strength = 0.9; // base compression strength
+      const strength = 0.9 * cursorInfluence; // scale by behavior-provided influence
       const combined = angularFalloff * distanceInfluence;
       radius = baseRadius * (1 - strength * combined);
     }
@@ -257,19 +261,24 @@ export class Orbweaver {
     let rotationPhase = 0;
     let yOffsetUnits = 0;
     let xOffsetUnits = 0;
+    let cursorInfluence = 0;
     for (const behavior of this.behaviors) {
       const acc: Record<string, number> = {};
       behavior.contribute(acc);
       rotationPhase += acc[Channels.rotationPhase] ?? 0;
       yOffsetUnits += acc[Channels.yOffsetUnits] ?? 0;
       xOffsetUnits += acc[Channels.xOffsetUnits] ?? 0;
+      cursorInfluence += acc[Channels.cursorInfluence] ?? 0;
     }
+
+    // Clamp accumulated influence to [0,1]
+    cursorInfluence = Math.max(0, Math.min(1, cursorInfluence));
 
     // Apply impulse offsets in concert with behaviors (normalized units)
     xOffsetUnits += this.impulseOffsetUnits.x;
     yOffsetUnits += this.impulseOffsetUnits.y;
 
-    // Compute cursor angle and distance relative to the blob center in normalized space, if available
+    // Compute cursor angle and distance relative to the blob center in normalized space, if enabled
     let cursorTheta: number | null = null;
     let cursorDistanceUnits: number | null = null;
     if (
@@ -277,7 +286,8 @@ export class Orbweaver {
       this.crosshairRow !== null &&
       this.crosshairCol !== null &&
       this.cols > 0 &&
-      this.rows > 0
+      this.rows > 0 &&
+      cursorInfluence > 0
     ) {
       const { width, height } = this.renderer.getPixelSize();
       const cellWidth = width / this.cols;
@@ -301,10 +311,11 @@ export class Orbweaver {
       yOffsetUnits,
       cursorTheta,
       cursorDistanceUnits,
+      cursorInfluence,
     };
   }
 
-  updateCursor(x: number | null, y: number | null) {
+  updateCrosshair(x: number | null, y: number | null) {
     this.crosshairRow = x;
     this.crosshairCol = y;
   }
@@ -532,6 +543,7 @@ export type {
   RotateParams,
   BobParams,
   OrbitParams,
+  CrosshairParams,
 };
 export {
   HARMONIC_PRESETS,
@@ -542,6 +554,7 @@ export {
   OrbitBehavior,
   Channels,
   CanvasAsciiRenderer,
+  CrosshairBehavior,
 };
 
 export default Orbweaver;

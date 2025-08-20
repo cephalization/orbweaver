@@ -89,10 +89,10 @@ function App() {
     // Drag cursor to sync mouse position to orbweaver
     const onMouseMove = (e: MouseEvent) => {
       const { row, col } = renderer.clientToCell(e.clientX, e.clientY);
-      orbweaverRef.current?.updateCursor(col, row);
+      orbweaverRef.current?.updateCrosshair(col, row);
     };
     const onMouseLeave = () => {
-      orbweaverRef.current?.updateCursor(null, null);
+      orbweaverRef.current?.updateCrosshair(null, null);
     };
     canvas.addEventListener("mousemove", onMouseMove);
     canvas.addEventListener("mouseleave", onMouseLeave);

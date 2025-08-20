@@ -10,7 +10,9 @@ import {
     type BobParams,
     BobBehavior as BobBehaviorCore,
     type OrbitParams,
-    OrbitBehavior as OrbitBehaviorCore
+    OrbitBehavior as OrbitBehaviorCore,
+    type CrosshairParams,
+    CrosshairBehavior as CrosshairBehaviorCore
 } from "orbweaver-core"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -138,9 +140,10 @@ export function Orbweaver({ children, ...props }: OrbweaverProps) {
     </OrbweaverContext.Provider>;
 }
 
-export function Canvas({ renderer, rendererOptions, ...props }: React.CanvasHTMLAttributes<HTMLCanvasElement> & {
+export function Canvas({ renderer, rendererOptions, ...props }: Omit<React.CanvasHTMLAttributes<HTMLCanvasElement>, "onMouseMove"> & {
     renderer?: CanvasAsciiRenderer;
     rendererOptions?: CanvasAsciiRendererOptions;
+    onMouseMove?: (event: React.MouseEvent<HTMLCanvasElement>, orbweaver: OrbweaverCore) => void;
 }) {
     const { canvasRef, rendererRef, orbweaver, setInitialized, logger } = useOrbweaver();
     useEffect(() => {
@@ -171,7 +174,12 @@ export function Canvas({ renderer, rendererOptions, ...props }: React.CanvasHTML
             }
         }
     })
-    return <canvas ref={canvasRef} {...props} />;
+    const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+        if (orbweaver) {
+            props.onMouseMove?.(event, orbweaver);
+        }
+    }, [orbweaver, props.onMouseMove])
+    return <canvas ref={canvasRef} {...props} onMouseMove={handleMouseMove} />;
 }
 
 function useOrbweaverBehavior(behaviorFactory: () => Behavior) {
@@ -203,6 +211,12 @@ export function BobBehavior({ amplitude, rate }: BobParams) {
 
 export function OrbitBehavior({ radiusUnits, angularSpeed, phase, axis }: OrbitParams) {
     const behavior = useCallback(() => new OrbitBehaviorCore({ radiusUnits, angularSpeed, phase: phase ?? 0, axis: axis ?? "both" }), [radiusUnits, angularSpeed, phase, axis]);
+    useOrbweaverBehavior(behavior);
+    return null;
+}
+
+export function CrosshairBehavior({ strength }: CrosshairParams) {
+    const behavior = useCallback(() => new CrosshairBehaviorCore({ strength: strength ?? 1 }), [strength]);
     useOrbweaverBehavior(behavior);
     return null;
 }

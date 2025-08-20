@@ -1,5 +1,5 @@
-import type { CanvasAsciiRendererOptions } from "orbweaver-core";
-import { BobBehavior, Canvas, OrbitBehavior, Orbweaver, RotateBehavior } from "orbweaver-react";
+import { type CanvasAsciiRendererOptions } from "orbweaver-core";
+import { BobBehavior, Canvas, CrosshairBehavior, OrbitBehavior, Orbweaver, RotateBehavior } from "orbweaver-react";
 import { useState } from "react";
 
 const rendererOptions: CanvasAsciiRendererOptions = {
@@ -33,16 +33,31 @@ export function Declarative() {
             }} />
         </label>
         <Orbweaver fps={fps}>
-            <Canvas rendererOptions={rendererOptions} style={{
-                width: "70%",
-                height: "70%",
-                borderRadius: 8,
-                border: "1px solid #1E3A2F",
-                background: "#081B12",
-            }} />
+            <Canvas
+                rendererOptions={rendererOptions}
+                style={{
+                    width: "70%",
+                    height: "70%",
+                    borderRadius: 8,
+                    border: "1px solid #1E3A2F",
+                    background: "#081B12",
+                }}
+                onMouseMove={
+                    (e, o) => {
+                        // Get cell coordinates from client coordinates
+                        const coords = o.getRenderer()?.clientToCell?.(e.clientX, e.clientY);
+                        // Update crosshair position if we have coordinates
+                        if (coords) {
+                            // CrosshairBehavior depends on crosshair position to be set on orbweaver
+                            // This can be set however you want, mouse movement, keyboard, touch, etc.
+                            o.updateCrosshair(coords.col, coords.row);
+                        }
+                    }}
+            />
             <RotateBehavior speed={1} direction={1} />
             <BobBehavior amplitude={0.05} rate={2.5} />
             <OrbitBehavior radiusUnits={0.15} angularSpeed={1} />
+            <CrosshairBehavior strength={0.5} />
         </Orbweaver>
     </div>
 }
