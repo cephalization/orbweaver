@@ -1,13 +1,15 @@
 import {
   BlobModel,
-  type Harmonic,
-  type HarmonicPreset,
-  type HarmonicPresetName,
-  HARMONIC_PRESETS,
-  type HarmonicGenParams,
-  type FrequencySpacing,
-  type HarmonicInput,
 } from "./blob.js";
+import { HARMONIC_PRESETS } from "./harmonics.js";
+import type {
+  Harmonic,
+  HarmonicPreset,
+  HarmonicPresetName,
+  HarmonicGenParams,
+  FrequencySpacing,
+  HarmonicInput,
+} from "./harmonics.js"
 import {
   type Renderer,
   CanvasAsciiRenderer,
@@ -68,12 +70,12 @@ export class Orbweaver {
     cursorTheta: number | null;
     cursorDistanceUnits: number | null;
   } = {
-    rotationPhase: 0,
-    xOffsetUnits: 0,
-    yOffsetUnits: 0,
-    cursorTheta: null,
-    cursorDistanceUnits: null,
-  };
+      rotationPhase: 0,
+      xOffsetUnits: 0,
+      yOffsetUnits: 0,
+      cursorTheta: null,
+      cursorDistanceUnits: null,
+    };
 
   // Impulse integration state (normalized units)
   private impulseOffsetUnits: Vector2 = { x: 0, y: 0 };
@@ -517,29 +519,29 @@ export class Orbweaver {
   }
 }
 
-export {
-  BlobModel,
-  type Harmonic,
-  type HarmonicPreset,
-  type HarmonicPresetName,
-  HARMONIC_PRESETS,
-  type HarmonicGenParams,
-  type FrequencySpacing,
-  type HarmonicInput,
-  type Renderer,
-  CanvasAsciiRenderer,
-  type RendererOptions,
-  type CanvasAsciiRendererOptions,
+export type {
+  Harmonic,
+  HarmonicPreset,
+  HarmonicPresetName,
+  HarmonicGenParams,
+  FrequencySpacing,
+  HarmonicInput,
+  Renderer,
+  RendererOptions,
+  CanvasAsciiRendererOptions,
+  RotateParams,
+  BobParams,
+  OrbitParams,
 };
 export {
+  HARMONIC_PRESETS,
   Behavior,
+  BlobModel,
   BobBehavior,
   RotateBehavior,
   OrbitBehavior,
   Channels,
-  type RotateParams,
-  type BobParams,
-  type OrbitParams,
+  CanvasAsciiRenderer,
 };
 
 export default Orbweaver;
