@@ -8,6 +8,7 @@ export type RendererOptions = {
 export interface Renderer {
   getPixelSize(): { width: number; height: number };
   getGridSize(): { cols: number; rows: number };
+  clientToCell?: (clientX: number, clientY: number) => { col: number; row: number; x: number; y: number; distanceToCenter: number; unitScalePx: number; normalizedOffsetX: number; normalizedOffsetY: number; normalizedDistance: number };
   render(intensityAt: (col: number, row: number) => number): void;
   onResize(callback: () => void): () => void;
   destroy(): void;
