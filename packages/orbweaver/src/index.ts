@@ -15,6 +15,8 @@ import {
   CanvasAsciiRenderer,
   type CanvasAsciiRendererOptions,
   type RendererOptions,
+  CanvasGradientRenderer,
+  type CanvasGradientRendererOptions,
 } from "./renderer.js";
 import {
   Behavior,
@@ -540,6 +542,7 @@ export type {
   Renderer,
   RendererOptions,
   CanvasAsciiRendererOptions,
+  CanvasGradientRendererOptions,
   RotateParams,
   BobParams,
   OrbitParams,
@@ -554,6 +557,7 @@ export {
   OrbitBehavior,
   Channels,
   CanvasAsciiRenderer,
+  CanvasGradientRenderer,
   CrosshairBehavior,
 };
 
