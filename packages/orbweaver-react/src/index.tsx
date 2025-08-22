@@ -5,6 +5,8 @@ import {
     type Renderer,
     CanvasAsciiRenderer,
     type CanvasAsciiRendererOptions,
+    CanvasGradientRenderer,
+    type CanvasGradientRendererOptions,
     type RotateParams,
     RotateBehavior as RotateBehaviorCore,
     type BobParams,
@@ -141,15 +143,24 @@ export function Orbweaver({ children, ...props }: OrbweaverProps) {
 }
 
 export function Canvas({ renderer, rendererOptions, ...props }: Omit<React.CanvasHTMLAttributes<HTMLCanvasElement>, "onMouseMove"> & {
-    renderer?: CanvasAsciiRenderer;
-    rendererOptions?: CanvasAsciiRendererOptions;
+    renderer?: Renderer;
+    rendererOptions?: CanvasAsciiRendererOptions | CanvasGradientRendererOptions;
     onMouseMove?: (event: React.MouseEvent<HTMLCanvasElement>, orbweaver: OrbweaverCore) => void;
 }) {
     const { canvasRef, rendererRef, orbweaver, setInitialized, logger } = useOrbweaver();
     useEffect(() => {
         if (canvasRef.current) {
             const oldRenderer = rendererRef.current;
-            const newRenderer = oldRenderer == null ? new CanvasAsciiRenderer(canvasRef.current, rendererOptions) : oldRenderer;
+            let newRenderer: Renderer | null = oldRenderer ?? null;
+            if (!newRenderer) {
+                if (renderer) {
+                    newRenderer = renderer;
+                } else if (rendererOptions && typeof (rendererOptions as any).colors !== "undefined") {
+                    newRenderer = new CanvasGradientRenderer(canvasRef.current, rendererOptions as CanvasGradientRendererOptions);
+                } else {
+                    newRenderer = new CanvasAsciiRenderer(canvasRef.current, rendererOptions as CanvasAsciiRendererOptions);
+                }
+            }
             rendererRef.current = newRenderer;
             if (orbweaver && newRenderer) {
                 logger.log("setting renderer");
@@ -167,10 +178,10 @@ export function Canvas({ renderer, rendererOptions, ...props }: Omit<React.Canva
     }, [renderer, rendererOptions, orbweaver, setInitialized, logger])
     useEffect(() => {
         if (canvasRef.current) {
-            const renderer = rendererRef.current;
-            if (renderer instanceof CanvasAsciiRenderer && renderer.getCanvas() !== canvasRef.current) {
+            const r = rendererRef.current as any;
+            if (r && typeof r.getCanvas === "function" && r.getCanvas() !== canvasRef.current && typeof r.setCanvas === "function") {
                 logger.log("setting canvas");
-                renderer.setCanvas(canvasRef.current);
+                r.setCanvas(canvasRef.current);
             }
         }
     })
